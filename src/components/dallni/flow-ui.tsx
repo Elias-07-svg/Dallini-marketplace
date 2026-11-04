@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -122,42 +121,6 @@ export function PrimaryButton({ label, onPress, disabled = false }: PrimaryButto
       <Text style={styles.primaryButtonText}>{label}</Text>
       <Text style={styles.primaryButtonArrow}>←</Text>
     </Pressable>
-  );
-}
-
-export function ChatMessageBubble({
-  role,
-  text,
-  imageUri,
-}: {
-  role: 'assistant' | 'user';
-  text?: string;
-  imageUri?: string;
-}) {
-  const isUser = role === 'user';
-  const visibleText = text?.trim();
-
-  if (!visibleText && !imageUri) return null;
-
-  return (
-    <View style={[styles.messageWrap, isUser ? styles.userMessageWrap : styles.assistantMessageWrap]}>
-      {!isUser && <Text style={styles.messageAuthor}>مساعد دَلّني</Text>}
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        {imageUri && (
-          <Image
-            accessibilityLabel="صورة مرفقة بالرسالة"
-            source={{ uri: imageUri }}
-            style={styles.messageImage}
-            resizeMode="cover"
-          />
-        )}
-        {visibleText && (
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-            {visibleText}
-          </Text>
-        )}
-      </View>
-    </View>
   );
 }
 
@@ -321,56 +284,6 @@ const styles = StyleSheet.create({
     color: '#D8EEE5',
     fontSize: 20,
     lineHeight: 22,
-  },
-  messageWrap: {
-    maxWidth: '88%',
-    marginVertical: 5,
-  },
-  userMessageWrap: {
-    alignSelf: 'flex-end',
-  },
-  assistantMessageWrap: {
-    alignSelf: 'flex-start',
-  },
-  messageAuthor: {
-    color: DALLNI_COLORS.muted,
-    fontSize: 10,
-    fontWeight: '700',
-    marginBottom: 4,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  messageBubble: {
-    borderRadius: 16,
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  messageImage: {
-    backgroundColor: DALLNI_COLORS.greenLight,
-    borderRadius: 11,
-    height: 170,
-    width: 210,
-  },
-  assistantBubble: {
-    backgroundColor: DALLNI_COLORS.surface,
-    borderBottomRightRadius: 5,
-    borderColor: DALLNI_COLORS.border,
-    borderWidth: 1,
-  },
-  userBubble: {
-    backgroundColor: DALLNI_COLORS.green,
-    borderBottomLeftRadius: 5,
-  },
-  messageText: {
-    color: DALLNI_COLORS.ink,
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  userMessageText: {
-    color: '#FFFFFF',
   },
   surfaceCard: {
     backgroundColor: DALLNI_COLORS.surface,

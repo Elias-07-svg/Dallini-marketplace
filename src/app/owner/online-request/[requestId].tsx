@@ -147,19 +147,21 @@ export default function ConnectedShopRequestScreen() {
 
   const normalizedPrice = normalizePrice(price, currencyCode);
   const priceAmount = Number(normalizedPrice);
+  const isPriceValid = Number.isFinite(priceAmount) && priceAmount > 0 && priceAmount <= 9999999999.99;
   const validWhatsAppNumber = shop
     ? normalizeInternationalWhatsAppNumber(shop.whatsapp_number)
     : null;
+  const missingOfferRequirements = [
+    !itemName.trim() ? 'اسم المنتج' : null,
+    !isPriceValid ? 'سعر صحيح' : null,
+    !deliveryNote.trim() ? 'ملاحظة التوصيل' : null,
+    !validWhatsAppNumber ? 'رقم واتساب دولي بملف المحل' : null,
+  ].filter((requirement): requirement is string => requirement !== null);
   const canOffer = Boolean(
     user &&
       shop?.status === 'active' &&
       request?.status === 'open' &&
-      validWhatsAppNumber &&
-      itemName.trim() &&
-      deliveryNote.trim() &&
-      Number.isFinite(priceAmount) &&
-      priceAmount > 0 &&
-      priceAmount <= 9999999999.99 &&
+      missingOfferRequirements.length === 0 &&
       !isSaving,
   );
   const nextStage = order ? getNextOrderStage(order.stage) : null;
@@ -232,7 +234,7 @@ export default function ConnectedShopRequestScreen() {
       <StatusBar barStyle="dark-content" />
       <FlowHeader
         title="تفاصيل الطلب"
-        subtitle="المحتوى والصور بتظهر حسب صلاحيات الطلبات والتخزين الخاص."
+        subtitle="راجع تفاصيل الطلب والصورة، وجهّز عرضاً مناسباً للزبون."
         onBack={() => router.back()}
       />
 
@@ -243,7 +245,7 @@ export default function ConnectedShopRequestScreen() {
         {isAuthLoading || isLoading ? (
           <SurfaceCard style={styles.stateCard}>
             <ActivityIndicator color={DALLNI_COLORS.green} />
-            <Text style={styles.stateText}>عم نتحقق من صلاحية الطلب ونحمّل تفاصيله…</Text>
+            <Text style={styles.stateText}>عم نتحقق من الطلب ونحمّل تفاصيله…</Text>
           </SurfaceCard>
         ) : !user ? (
           <SurfaceCard style={styles.stateCard}>
@@ -253,7 +255,7 @@ export default function ConnectedShopRequestScreen() {
         ) : errorCode ? (
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>ما قدرنا نحمّل تفاصيل الطلب</Text>
-            <Text style={styles.stateText}>رمز الخطأ: {errorCode}. جرّب تحديث الطلبات.</Text>
+            <Text style={styles.stateText}>تأكد من اتصال الإنترنت وحاول تحديث الطلب.</Text>
             <PrimaryButton
               label="إعادة المحاولة"
               onPress={() => {
@@ -267,7 +269,7 @@ export default function ConnectedShopRequestScreen() {
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>الطلب غير متاح</Text>
             <Text style={styles.stateText}>
-              يمكن الطلب تغيّر أو ما عاد حسابك يملك صلاحية قراءته.
+              يمكن تغيّرت حالة الطلب أو ما عاد متاحاً.
             </Text>
           </SurfaceCard>
         ) : (
@@ -308,7 +310,7 @@ export default function ConnectedShopRequestScreen() {
               <SurfaceCard style={styles.stateCard}>
                 <Text style={styles.stateTitle}>ما في إمكانية لإرسال عرض بعد</Text>
                 <Text style={styles.stateText}>
-                  حالة المحل «{shopStatusLabel(shop.status)}». التفعيل بيصير يدوياً بعد مراجعة مشغّل المشروع.
+                  ملف المحل «{shopStatusLabel(shop.status)}». بنبلغك بعد مراجعته وتجهيزه لإرسال العروض.
                 </Text>
               </SurfaceCard>
             ) : order ? (
@@ -345,7 +347,7 @@ export default function ConnectedShopRequestScreen() {
                 )}
                 {orderErrorCode ? (
                   <Text style={styles.errorText}>
-                    ما قدرنا نحدّث الحالة. رمز الخطأ: {orderErrorCode}. حدّث الصفحة وحاول من جديد.
+                    ما قدرنا نحدّث حالة الطلب. حدّث الصفحة وتأكد من اتصال الإنترنت وحاول مرة تانية.
                   </Text>
                 ) : null}
               </SurfaceCard>
@@ -353,7 +355,7 @@ export default function ConnectedShopRequestScreen() {
               <SurfaceCard style={styles.stateCard}>
                 <Text style={styles.stateTitle}>الطلب مش مفتوح للعروض</Text>
                 <Text style={styles.stateText}>
-                  قاعدة البيانات بتتحقق من حالة الطلب وقت الحفظ، حتى لو تغيّرت الشاشة بعد تحميلها.
+                  يمكن تغيّرت حالة الطلب. حدّث الصفحة قبل ما تحاول ترسل عرضاً.
                 </Text>
               </SurfaceCard>
             ) : (
@@ -410,14 +412,34 @@ export default function ConnectedShopRequestScreen() {
                   multiline
                   maxLength={500}
                 />
+                <View style={styles.offerPreview}>
+                  <View style={styles.previewHeading}>
+                    <Text style={styles.previewBadge}>معاينة</Text>
+                    <Text style={styles.previewTitle}>{itemName.trim() || 'اسم المنتج'}</Text>
+                  </View>
+                  <View style={styles.previewPriceRow}>
+                    <Text style={styles.previewPriceLabel}>السعر</Text>
+                    <Text style={styles.previewPriceValue}>
+                      {isPriceValid ? `${formatPrice(priceAmount)} ${currencyCode}` : 'أدخل السعر'}
+                    </Text>
+                  </View>
+                  <Text style={styles.previewDelivery}>
+                    {deliveryNote.trim() || 'أضف ملاحظة التوصيل'}
+                  </Text>
+                </View>
+                {missingOfferRequirements.length > 0 && (
+                  <Text style={styles.offerHint}>
+                    لإرسال العرض، كمّل: {missingOfferRequirements.join('، ')}.
+                  </Text>
+                )}
                 {errorCode && (
-                  <Text style={styles.errorText}>ما قدرنا نرسل العرض. رمز الخطأ: {errorCode}</Text>
+                  <Text style={styles.errorText}>ما قدرنا نرسل العرض. تحقق من البيانات واتصال الإنترنت وحاول مرة تانية.</Text>
                 )}
                 {offerSaved && (
                   <ConfirmationPanel>
                     <Text style={styles.savedTitle}>تم حفظ العرض</Text>
                     <Text style={styles.savedText}>
-                      صار ضمن عروض الطلب. رقم واتساب يبقى بجدول خاص ولا يظهر قبل اختيار الزبون.
+                      صار ضمن عروض الطلب. رقم واتسابك بيضل مخفياً لحد ما يختار الزبون عرضك.
                     </Text>
                   </ConfirmationPanel>
                 )}
@@ -570,6 +592,22 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   offerCard: { gap: 12, padding: 15 },
+  offerPreview: {
+    backgroundColor: '#F4F8F6',
+    borderColor: '#DDEAE3',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 9,
+    padding: 13,
+  },
+  previewHeading: { alignItems: 'center', flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 },
+  previewBadge: { color: DALLNI_COLORS.green, fontSize: 9, fontWeight: '800', writingDirection: 'rtl' },
+  previewTitle: { color: DALLNI_COLORS.ink, flex: 1, fontSize: 12, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  previewPriceRow: { alignItems: 'center', flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  previewPriceLabel: { color: DALLNI_COLORS.muted, fontSize: 10, fontWeight: '700', writingDirection: 'rtl' },
+  previewPriceValue: { color: DALLNI_COLORS.greenDark, fontSize: 14, fontWeight: '900' },
+  previewDelivery: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
+  offerHint: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
   orderCard: { gap: 12, padding: 15 },
   orderOffer: {
     backgroundColor: '#F7F9F8',

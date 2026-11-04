@@ -72,7 +72,7 @@ function DemoCustomerRequestsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.demoNotice}>
-          <Text style={styles.demoNoticeTitle}>تجربة محلية مؤقتة</Text>
+          <Text style={styles.demoNoticeTitle}>تجربة مؤقتة</Text>
           <Text style={styles.demoNoticeText}>
             الطلبات والصور والعروض بتضلّ بهالجلسة وبتنمسح لما تسكّر التطبيق. ما في شي بينبعت لزبون أو محل حقيقي.
           </Text>

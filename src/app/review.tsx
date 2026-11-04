@@ -43,7 +43,7 @@ function requestTitle(details: string, hasImage: boolean) {
 function friendlyPublishError(error: unknown) {
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   if (/SUPABASE_NOT_CONFIGURED/.test(message)) {
-    return 'اتصال Supabase مش جاهز. فيك تكمّل بالتجربة المحلية من دون تسجيل دخول.';
+    return 'ما قدرنا نجهّز حفظ الطلب. جرّب مرة تانية، أو تابع بالتجربة من دون تسجيل دخول.';
   }
   if (/REQUEST_IMAGE_UNSUPPORTED_TYPE/.test(message)) {
     return 'صيغة الصورة غير مدعومة. اختار صورة JPG أو PNG أو WEBP.';
@@ -58,31 +58,37 @@ function friendlyPublishError(error: unknown) {
     return 'المسودة ما عادت متاحة. ارجع للرئيسية وابدأ طلب جديد.';
   }
   if (/network request failed|failed to fetch|networkerror|econnrefused|timeout/i.test(message)) {
-    return 'ما قدرنا نوصل بمشروع Supabase. تحقق من الإنترنت وعنوان المشروع وحاول من جديد.';
+    return 'ما قدرنا نوصل بالخدمة. تحقق من اتصال الإنترنت وحاول مرة تانية.';
   }
   if (/PGRST202|PGRST205|could not find the function|could not find the table|relation .* does not exist|bucket.*not found/i.test(message)) {
-    return 'تأكد إن مخطط قاعدة Supabase مطبّق على المشروع.';
+    return 'في مشكلة مؤقتة بحفظ الطلب. حاول مرة تانية، وإذا استمرت تواصل معنا.';
   }
-  return 'ما قدرنا نحفظ الطلب هلّق. راجع اتصال Supabase وحاول مرة تانية.';
+  return 'ما قدرنا نحفظ الطلب هلّق. تحقق من اتصال الإنترنت وحاول مرة تانية.';
 }
 
 export default function ReviewScreen() {
   const { addApprovedRequest } = useDemoSession();
   const { user, isLoading: isAuthLoading } = useSupabaseAuth();
-  const { details, imageUri, imageMimeType } = useLocalSearchParams<{
+  const { details, imageUri, imageMimeType, category: selectedCategory } = useLocalSearchParams<{
     details?: string | string[];
     imageUri?: string | string[];
     imageMimeType?: string | string[];
+    category?: string | string[];
   }>();
   const detailText = Array.isArray(details) ? details[0] : details;
   const imageText = Array.isArray(imageUri) ? imageUri[0] : imageUri;
   const imageMimeTypeText = Array.isArray(imageMimeType)
     ? imageMimeType[0]
     : imageMimeType;
+  const categoryText = Array.isArray(selectedCategory)
+    ? selectedCategory[0]
+    : selectedCategory;
   const attachmentUri = imageText?.trim() ? imageText : null;
   const attachmentMimeType = imageMimeTypeText?.trim() || null;
   const [detailsText, setDetailsText] = useState(detailText ?? '');
-  const [category, setCategory] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | null>(
+    REQUEST_CATEGORIES.find((requestCategory) => requestCategory === categoryText) ?? null,
+  );
   const [area, setArea] = useState('');
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -144,7 +150,9 @@ export default function ReviewScreen() {
         title={confirmed ? 'طلبك صار جاهز' : 'راجع طلبك'}
         subtitle={
           confirmed
-            ? 'هيدي معاينة محلية لتجربة الموافقة.'
+            ? savedToSupabase
+              ? 'تم نشر طلبك. تابع العروض من صفحة طلباتي والعروض.'
+              : 'تم حفظ طلبك بالتجربة.'
             : 'راجع النص أو الصورة المرفقة قبل ما توافق.'
         }
         onBack={() => router.back()}
@@ -241,7 +249,7 @@ export default function ReviewScreen() {
         {!confirmed && (
           <View style={styles.disclosureCard}>
             <Text style={styles.disclosureTitle}>
-              {user ? 'مين بيقدر يشوف طلبك؟' : 'مشاركة الطلب بالتجربة المحلية'}
+              {user ? 'مين بيقدر يشوف طلبك؟' : 'مشاركة الطلب بالتجربة'}
             </Text>
             <Text style={styles.disclosureText}>
               {user
@@ -257,8 +265,8 @@ export default function ReviewScreen() {
             {isAuthLoading
               ? 'عم نتحقق من حالة تسجيل الدخول…'
               : user
-                ? 'بعد موافقتك، الطلب بيننشر بمشروع Supabase والصورة بتنحفظ بمخزن خاص. أصحاب المحلات الموثّقين بيقدروا يقدّموا عروض، وبتشوفها هون بعد تحديث الطلبات.'
-                : 'هيدي تجربة محلية. الطلب والصورة بيضلّوا بهالجلسة، وبيتنمسحوا لما تسكّر التطبيق.'}
+                ? 'بعد النشر، أصحاب المحلات المؤهّلين بيقدروا يقدّموا عروض. بتشوفها وتتابع طلبك من صفحة طلباتي والعروض.'
+                : 'هيدي تجربة من دون حساب؛ الطلب والصورة بيضلّوا لهالجلسة وبيتنمسحوا لما تسكّر التطبيق.'}
           </Text>
         </View>
 
@@ -268,7 +276,7 @@ export default function ReviewScreen() {
             onPress={() => router.push('/auth' as Href)}
             style={({ pressed }) => [styles.signInPrompt, pressed && styles.pressed]}>
             <Text style={styles.signInPromptText}>
-              سجّل دخولك إذا بدك تحفظ الطلب بحساب Supabase.
+              سجّل دخولك لحفظ الطلب بحسابك ومتابعة العروض من أي جهاز.
             </Text>
           </Pressable>
         )}
@@ -278,7 +286,7 @@ export default function ReviewScreen() {
             <Text style={styles.errorText}>{saveError}</Text>
             {publishProgress && (
               <Text style={styles.errorHint}>
-                في مسودة خاصة غير منشورة بمشروع Supabase؛ جرّب مرة تانية لإكمالها.
+                طلبك محفوظ كمسودة خاصة وما اننشر بعد. جرّب مرة تانية لإكمال النشر.
               </Text>
             )}
           </View>
@@ -289,8 +297,8 @@ export default function ReviewScreen() {
             <Text style={styles.confirmationTitle}>تمّ تأكيد طلبك</Text>
             <Text style={styles.confirmationText}>
               {savedToSupabase
-                ? 'اننشر طلبك والصورة المرفقة إن وُجدت بمشروع Supabase بعد موافقتك، وصار بإمكان أصحاب المحلات الموثّقين يشوفوه ويقدّموا عروض. في كمان نسخة بهالجلسة لتسهيل التجربة المحلية.'
-                : 'صار طلبك ظاهر بصندوق صاحب المحل التجريبي بهالجلسة؛ ما رح يوصل لمحل حقيقي وبينمسح لما تسكّر التطبيق.'}
+                ? 'تم نشر طلبك بنجاح. أصحاب المحلات المؤهّلون بيقدروا يقدّموا عروض، وتقدر تتابعها من صفحة طلباتي والعروض.'
+                : 'تم حفظ طلبك بالتجربة بهالجلسة فقط، وما رح يوصل لمحل حقيقي.'}
             </Text>
             <Text style={styles.confirmationText}>
               الفئة: {category ?? ''} · المنطقة: {area.trim()}

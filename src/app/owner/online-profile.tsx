@@ -1,6 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfferField } from '@/components/dallni/offer-field';
@@ -106,7 +106,7 @@ export default function ConnectedShopProfileScreen() {
       <StatusBar barStyle="dark-content" />
       <FlowHeader
         title="ملف المحل المتصل"
-        subtitle="المعلومات محفوظة بجدول shops المحلي، والحالة بتضل تحت مراجعة مشغّل المشروع."
+        subtitle="أضف معلومات محلك ومناطق خدمته حتى توصلك الطلبات المناسبة."
         onBack={() => router.back()}
       />
 
@@ -128,7 +128,7 @@ export default function ConnectedShopProfileScreen() {
         ) : errorCode && !shop && !shopName ? (
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>ما قدرنا نحمّل ملف المحل</Text>
-            <Text style={styles.stateText}>رمز الخطأ: {errorCode}. جرّب من جديد.</Text>
+            <Text style={styles.stateText}>تأكد من اتصال الإنترنت وحاول مرة تانية.</Text>
             <PrimaryButton
               label="إعادة المحاولة"
               onPress={() => {
@@ -141,25 +141,31 @@ export default function ConnectedShopProfileScreen() {
         ) : (
           <>
             <SurfaceCard style={styles.noticeCard}>
-              <Text style={styles.noticeTitle}>الموافقة اليدوية محفوظة</Text>
+              <Text style={styles.noticeTitle}>حالة ملف المحل</Text>
               <Text style={styles.noticeText}>
-                المحل الجديد يبدأ بحالة «قيد المراجعة». هالتطبيق ما بيغيّر حالة المحل ولا بيقدر يفعّله؛ الموافقة بيعملها مشغّل المشروع بعد المراجعة.
+                الملف الجديد بيضل قيد المراجعة قبل ما يقدر المحل يشوف الطلبات ويرسل عروض. رح تلاقي حالته هون.
               </Text>
               {shop && (
-                <Text style={styles.statusLine}>الحالة الحالية: {shopStatusLabel(shop.status)}</Text>
+                <Text style={[styles.statusBadge, statusStyle(shop.status)]}>
+                  {shopStatusLabel(shop.status)}
+                </Text>
               )}
             </SurfaceCard>
 
             <SurfaceCard style={styles.formCard}>
+              <View style={styles.formHeading}>
+                <Text style={styles.formTitle}>معلومات المحل</Text>
+                <Text style={styles.formSubtitle}>خلّي التفاصيل واضحة لحتى الزبائن يعرفوا إذا بتقدر تخدم منطقتهم.</Text>
+              </View>
               <OfferField
-                label="اسم المحل"
+                label="اسم المحل *"
                 placeholder="مثلاً: محل المدينة"
                 value={shopName}
                 onChangeText={setShopName}
                 maxLength={70}
               />
               <OfferField
-                label="رقم واتساب بصيغة دولية"
+                label="واتساب (مطلوب لإرسال العروض)"
                 placeholder="مثلاً: +961..."
                 value={whatsappNumber}
                 onChangeText={setWhatsappNumber}
@@ -168,8 +174,8 @@ export default function ConnectedShopProfileScreen() {
               />
               <Text style={[styles.hint, hasInvalidWhatsAppNumber && styles.errorHint]}>
                 {hasInvalidWhatsAppNumber
-                  ? 'اكتب + ورمز الدولة والرقم، مثل صيغة +961... من دون فراغات.'
-                  : 'اتركه فارغاً إذا ما بدك تضيف عروض حالياً. العرض يتطلب رقماً دولياً صالحاً.'}
+                  ? 'راجع الرقم ورمز الدولة. مثال: +961 3 123 456.'
+                  : 'أضف الرقم مع رمز الدولة. ما بيظهر للزبون قبل ما يختار عرضك.'}
               </Text>
               <OfferField
                 label="موقع المحل"
@@ -186,7 +192,7 @@ export default function ConnectedShopProfileScreen() {
                 multiline
                 maxLength={300}
               />
-              <Text style={styles.hint}>افصل المناطق بفاصلة. تُحفظ كقائمة مستقلة عن موقع المحل.</Text>
+              <Text style={styles.hint}>اكتب كل منطقة وافصل بينها بفاصلة، مثل بيروت، جونية، المتن.</Text>
               <OfferField
                 label="فئات المنتجات"
                 placeholder="إلكترونيات، أثاث، رياضة"
@@ -195,10 +201,10 @@ export default function ConnectedShopProfileScreen() {
                 multiline
                 maxLength={300}
               />
-              <Text style={styles.hint}>افصل الفئات بفاصلة واستخدم أسماء الفئات المعتمدة بطلبات الزبائن.</Text>
+              <Text style={styles.hint}>افصل الفئات بفاصلة، واكتبها مثل الفئات الظاهرة بطلبات الزبائن.</Text>
 
               {errorCode && (
-                <Text style={styles.errorText}>ما قدرنا نحفظ الملف. رمز الخطأ: {errorCode}</Text>
+                <Text style={styles.errorText}>ما قدرنا نحفظ ملف المحل. تحقق من اتصال الإنترنت وحاول مرة تانية.</Text>
               )}
               <PrimaryButton
                 disabled={!canSave}
@@ -206,7 +212,7 @@ export default function ConnectedShopProfileScreen() {
                 onPress={() => void saveProfile()}
               />
               <Text style={styles.footerNote}>
-                رقم واتساب يبقى بملف المحل الخاص، ويُنسخ للعروض داخل جدول منفصل عند إنشاء العرض. لا يظهر ضمن بطاقة العرض العامة.
+                رقم واتساب ما بيظهر ضمن تفاصيل العرض. بيصير التواصل متاحاً بعد ما يختار الزبون عرضك.
               </Text>
             </SurfaceCard>
           </>
@@ -220,6 +226,12 @@ function shopStatusLabel(status: OwnerShopProfile['status']) {
   if (status === 'active') return 'مفعّل';
   if (status === 'suspended') return 'موقوف';
   return 'قيد المراجعة';
+}
+
+function statusStyle(status: OwnerShopProfile['status']) {
+  if (status === 'active') return styles.statusActive;
+  if (status === 'suspended') return styles.statusSuspended;
+  return styles.statusPending;
 }
 
 const styles = StyleSheet.create({
@@ -240,7 +252,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  noticeCard: { gap: 6, padding: 14 },
+  noticeCard: { alignItems: 'flex-end', gap: 8, padding: 15 },
   noticeTitle: {
     color: DALLNI_COLORS.greenDark,
     fontSize: 12,
@@ -255,14 +267,22 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  statusLine: {
-    color: DALLNI_COLORS.greenDark,
+  statusBadge: {
+    borderRadius: 10,
     fontSize: 10,
     fontWeight: '800',
-    textAlign: 'right',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     writingDirection: 'rtl',
   },
-  formCard: { gap: 13, padding: 15 },
+  statusActive: { backgroundColor: '#EAF5F0', color: DALLNI_COLORS.greenDark },
+  statusPending: { backgroundColor: '#FFF5DF', color: '#775B20' },
+  statusSuspended: { backgroundColor: '#FFF0EE', color: '#9B3830' },
+  formCard: { gap: 13, padding: 16 },
+  formHeading: { alignItems: 'flex-end', gap: 4, marginBottom: 2 },
+  formTitle: { color: DALLNI_COLORS.ink, fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  formSubtitle: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 17, textAlign: 'right', writingDirection: 'rtl' },
   hint: {
     color: DALLNI_COLORS.muted,
     fontSize: 10,

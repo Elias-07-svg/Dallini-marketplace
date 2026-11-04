@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import {
   Alert,
   Image,
@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  type ScrollViewInstance,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,106 +17,26 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  ChatMessageBubble,
   DALLNI_COLORS,
   FlowHeader,
   FlowSteps,
   PrimaryButton,
+  SurfaceCard,
 } from '@/components/dallni/flow-ui';
 
-type Message = {
-  id: number;
-  role: 'assistant' | 'user';
-  text?: string;
-  imageUri?: string;
-};
-
-const assistantReplies = [
-  'تمام! بأي منطقة بدك تلاقيه؟ وفي ميزانية تقريبية؟',
-  'منيح، وصلتني. في مواصفات أو ماركة معيّنة بتهمّك؟',
-  'ممتاز، هيك صار عندي صورة أوضح. فيك تراجعي طلبك وتعدّلي التفاصيل قبل التأكيد.',
-  'وصلت هالتفصيلة كمان. كمّلي للمراجعة وقت تكوني جاهزة.',
-];
-
-const imageReply =
-  'وصلتني الصورة، شكراً! خبرني شو عم تفتّش عليه وأي تفاصيل بتهمّك.';
-const quickPrompts = ['بدّي موبايل جديد', 'كنباية مستعملة'];
+const quickExamples = ['بدّي موبايل جديد', 'كنباية مستعملة', 'سماعات بلوتوث'];
 
 export default function RequestScreen() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 0,
-      role: 'assistant',
-      text: 'أهلا فيك بدَلّني! احكيلي شو عم تفتّشي عليه، حتى لو وصف بسيط.',
-    },
-  ]);
-  const [draft, setDraft] = useState('');
+  const { prompt, category } = useLocalSearchParams<{
+    prompt?: string | string[];
+    category?: string | string[];
+  }>();
+  const starterPrompt = Array.isArray(prompt) ? prompt[0] : prompt;
+  const starterCategory = Array.isArray(category) ? category[0] : category;
+  const [details, setDetails] = useState(starterPrompt ?? '');
   const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
   const [attachmentMimeType, setAttachmentMimeType] = useState<string | null>(null);
-  const [requestImageUri, setRequestImageUri] = useState<string | null>(null);
-  const [requestImageMimeType, setRequestImageMimeType] = useState<string | null>(null);
-  const [isResponding, setIsResponding] = useState(false);
-  const messageId = useRef(1);
-  const userTurns = useRef(0);
-  const responseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollRef = useRef<ScrollViewInstance | null>(null);
-
-  useEffect(
-    () => () => {
-      if (responseTimer.current) clearTimeout(responseTimer.current);
-    },
-    [],
-  );
-
-  const hasUserMessage = messages.some((message) => message.role === 'user');
-  const canSend = Boolean(draft.trim()) || attachmentUri !== null;
-  const canReview = hasUserMessage;
-  const requestDetails = messages
-    .filter((message) => message.role === 'user')
-    .map((message) => message.text?.trim() ?? '')
-    .filter((text) => text.length > 0)
-    .map((text) => '• ' + text)
-    .join('\n')
-    .slice(0, 1400);
-
-  function sendMessage(value = draft) {
-    const text = value.trim();
-    const imageToSend = attachmentUri;
-    const imageMimeTypeToSend = attachmentMimeType;
-    if ((!text && !imageToSend) || isResponding) return;
-
-    const turn = text ? userTurns.current + 1 : userTurns.current;
-    if (text) userTurns.current = turn;
-    const userMessage: Message = {
-      id: messageId.current++,
-      role: 'user',
-      ...(text ? { text } : {}),
-      ...(imageToSend ? { imageUri: imageToSend } : {}),
-    };
-    setMessages((current) => [...current, userMessage]);
-    setDraft('');
-    setAttachmentUri(null);
-    setAttachmentMimeType(null);
-    if (imageToSend) {
-      setRequestImageUri(imageToSend);
-      setRequestImageMimeType(imageMimeTypeToSend);
-    }
-    setIsResponding(true);
-
-    responseTimer.current = setTimeout(() => {
-      const reply = imageToSend
-        ? imageReply
-        : assistantReplies[Math.max(0, Math.min(turn - 1, assistantReplies.length - 1))];
-      const assistantMessage: Message = {
-        id: messageId.current++,
-        role: 'assistant',
-        text: reply,
-      };
-      setMessages((current) => [...current, assistantMessage]);
-      setIsResponding(false);
-      responseTimer.current = null;
-    }, 550);
-  }
+  const hasRequestContent = Boolean(details.trim()) || attachmentUri !== null;
 
   async function pickImage() {
     try {
@@ -136,6 +55,18 @@ export default function RequestScreen() {
     }
   }
 
+  function openReview() {
+    router.push({
+      pathname: '/review',
+      params: {
+        details: details.trim(),
+        imageUri: attachmentUri ?? '',
+        imageMimeType: attachmentMimeType ?? '',
+        category: starterCategory ?? '',
+      },
+    });
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -144,62 +75,76 @@ export default function RequestScreen() {
         style={styles.container}>
         <FlowHeader
           title="خلّينا نرتّب طلبك"
-          subtitle="اكتبها بطريقتك وباللهجة اللي بترتاحلها."
+          subtitle="اكتب شو بدك، وأضف صورة إذا بتساعد على التوضيح."
           onBack={() => router.back()}
         />
         <FlowSteps activeStep="request" />
 
-        <View style={styles.chatArea}>
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={styles.messageList}
-            keyboardShouldPersistTaps="handled"
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-            showsVerticalScrollIndicator={false}>
-            {!hasUserMessage && (
-              <View style={styles.quickPrompts}>
-                <Text style={styles.quickPromptTitle}>مش عارف من وين تبلّش؟</Text>
-                <View style={styles.quickPromptRow}>
-                  {quickPrompts.map((prompt) => (
-                    <Pressable
-                      key={prompt}
-                      onPress={() => sendMessage(prompt)}
-                      style={({ pressed }) => [
-                        styles.quickPrompt,
-                        pressed && styles.pressed,
-                      ]}>
-                      <Text style={styles.quickPromptText}>{prompt}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {starterCategory && (
+            <View style={styles.selectedCategory}>
+              <Text style={styles.selectedCategoryHint}>الفئة المختارة</Text>
+              <Text style={styles.selectedCategoryName}>{starterCategory}</Text>
+              <Text style={styles.selectedCategoryNote}>فيك تغيّرها بصفحة المراجعة</Text>
+            </View>
+          )}
+
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle}>شو بدك تلاقي؟</Text>
+            <Text style={styles.sectionDescription}>
+              اكتب اسم المنتج ومواصفاته أو أي تفاصيل بتساعد المحل يفهم طلبك.
+            </Text>
+          </View>
+
+          <SurfaceCard style={styles.detailsCard}>
+            <View style={styles.fieldHeading}>
+              <Text style={styles.fieldLabel}>وصف الطلب</Text>
+              <Text style={styles.characterCount}>{details.length}/500</Text>
+            </View>
+            <TextInput
+              accessibilityLabel="وصف طلبك"
+              maxLength={500}
+              multiline
+              onChangeText={setDetails}
+              placeholder="مثلاً: بدّي سماعات بلوتوث بسعر منيح..."
+              placeholderTextColor="#9AA8A0"
+              style={styles.detailsInput}
+              textAlign="right"
+              textAlignVertical="top"
+              value={details}
+            />
+          </SurfaceCard>
+
+          {!details.trim() && (
+            <View style={styles.examples}>
+              <Text style={styles.examplesTitle}>أمثلة سريعة</Text>
+              <View style={styles.exampleRow}>
+                {quickExamples.map((example) => (
+                  <Pressable
+                    key={example}
+                    accessibilityRole="button"
+                    onPress={() => setDetails(example)}
+                    style={({ pressed }) => [styles.exampleChip, pressed && styles.pressed]}>
+                    <Text style={styles.exampleText}>{example}</Text>
+                  </Pressable>
+                ))}
               </View>
-            )}
+            </View>
+          )}
 
-            {messages.map((message) => (
-              <ChatMessageBubble
-                key={message.id}
-                role={message.role}
-                text={message.text}
-                imageUri={message.imageUri}
-              />
-            ))}
-
-            {isResponding && (
-              <ChatMessageBubble role="assistant" text="عم رتّب التفاصيل..." />
-            )}
-          </ScrollView>
-        </View>
-
-        <View style={styles.composerWrap}>
           {attachmentUri && (
-            <View style={styles.attachmentPreview}>
+            <SurfaceCard style={styles.attachmentCard}>
               <Image
+                accessibilityLabel="الصورة المرفقة بالطلب"
                 source={{ uri: attachmentUri }}
                 style={styles.attachmentThumbnail}
                 resizeMode="cover"
               />
               <View style={styles.attachmentCopy}>
-                <Text style={styles.attachmentTitle}>صورة جاهزة للإرفاق</Text>
+                <Text style={styles.attachmentTitle}>الصورة جاهزة للإرفاق</Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="إزالة الصورة المرفقة"
@@ -207,61 +152,36 @@ export default function RequestScreen() {
                     setAttachmentUri(null);
                     setAttachmentMimeType(null);
                   }}
-                  style={styles.removeImageButton}>
+                  style={({ pressed }) => [styles.removeImageButton, pressed && styles.pressed]}>
                   <Text style={styles.removeImageText}>إزالة الصورة</Text>
                 </Pressable>
               </View>
-            </View>
+            </SurfaceCard>
           )}
-          <View style={styles.composer}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="إرفاق صورة من الجهاز"
-              onPress={pickImage}
-              style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}>
-              <Text style={styles.attachIcon}>＋</Text>
-            </Pressable>
-            <TextInput
-              accessibilityLabel="اكتب تفاصيل طلبك"
-              maxLength={500}
-              multiline
-              onChangeText={setDraft}
-              placeholder="مثلاً: بدّي سماعات بلوتوث بسعر منيح..."
-              placeholderTextColor="#9AA8A0"
-              style={styles.input}
-              textAlign="right"
-              value={draft}
-            />
-            <Pressable
-              accessibilityLabel="إرسال الرسالة"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canSend || isResponding }}
-              disabled={!canSend || isResponding}
-              onPress={() => sendMessage()}
-              style={({ pressed }) => [
-                styles.sendButton,
-                (!canSend || isResponding) && styles.sendButtonDisabled,
-                pressed && styles.pressed,
-              ]}>
-              <Text style={styles.sendIcon}>↑</Text>
-            </Pressable>
+
+          <View style={styles.privacyNote}>
+            <Text style={styles.privacyIcon}>ⓘ</Text>
+            <Text style={styles.privacyText}>
+              النص والصورة ما بيننشروا إلا بعد ما تراجع الطلب وتوافق بالخطوة التالية.
+            </Text>
           </View>
-          <Text style={styles.localNote}>
-            المحادثة تجريبية. ما منرفع الصورة إلا بعد موافقتك على نشر الطلب.
-          </Text>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={attachmentUri ? 'تغيير الصورة المرفقة' : 'إرفاق صورة من الجهاز'}
+            onPress={pickImage}
+            style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}>
+            <Text style={styles.attachIcon}>＋</Text>
+            <Text style={styles.attachText}>
+              {attachmentUri ? 'تغيير الصورة' : 'أضف صورة (اختياري)'}
+            </Text>
+          </Pressable>
           <PrimaryButton
-            disabled={!canReview}
+            disabled={!hasRequestContent}
             label="راجع الطلب"
-            onPress={() =>
-              router.push({
-                pathname: '/review',
-                params: {
-                  details: requestDetails,
-                  imageUri: requestImageUri ?? '',
-                  imageMimeType: requestImageMimeType ?? '',
-                },
-              })
-            }
+            onPress={openReview}
           />
         </View>
       </KeyboardAvoidingView>
@@ -277,149 +197,197 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  chatArea: {
-    flex: 1,
-    minHeight: 100,
-  },
-  messageList: {
+  content: {
+    gap: 14,
     paddingHorizontal: 20,
     paddingTop: 6,
     paddingBottom: 18,
   },
-  quickPrompts: {
+  selectedCategory: {
     alignItems: 'flex-end',
-    marginBottom: 12,
+    alignSelf: 'flex-end',
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderColor: '#D8EAE1',
+    borderRadius: 13,
+    borderWidth: 1,
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  quickPromptTitle: {
+  selectedCategoryHint: {
     color: DALLNI_COLORS.muted,
-    fontSize: 11,
-    marginBottom: 8,
+    fontSize: 9,
+    writingDirection: 'rtl',
+  },
+  selectedCategoryName: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 12,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  selectedCategoryNote: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 9,
+    writingDirection: 'rtl',
+  },
+  sectionHeading: {
+    alignItems: 'flex-end',
+    gap: 5,
+  },
+  sectionTitle: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 17,
+    fontWeight: '900',
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  quickPromptRow: {
+  sectionDescription: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 11,
+    lineHeight: 18,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  detailsCard: {
+    gap: 8,
+    padding: 13,
+  },
+  fieldHeading: {
+    alignItems: 'center',
     flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  fieldLabel: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  characterCount: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 9,
+  },
+  detailsInput: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 14,
+    lineHeight: 23,
+    minHeight: 145,
+    paddingHorizontal: 3,
+    paddingTop: 5,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  examples: {
+    alignItems: 'flex-end',
     gap: 8,
   },
-  quickPrompt: {
-    backgroundColor: DALLNI_COLORS.greenLight,
-    borderColor: '#D8EAE1',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  quickPromptText: {
-    color: DALLNI_COLORS.greenDark,
-    fontSize: 12,
+  examplesTitle: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 10,
     fontWeight: '700',
     writingDirection: 'rtl',
   },
-  composerWrap: {
-    backgroundColor: DALLNI_COLORS.background,
-    borderTopColor: DALLNI_COLORS.border,
-    borderTopWidth: 1,
-    gap: 9,
-    paddingHorizontal: 18,
-    paddingTop: 11,
-    paddingBottom: 10,
-  },
-  attachmentPreview: {
-    alignItems: 'center',
-    backgroundColor: DALLNI_COLORS.surface,
-    borderColor: DALLNI_COLORS.border,
-    borderRadius: 14,
-    borderWidth: 1,
+  exampleRow: {
     flexDirection: 'row-reverse',
-    gap: 11,
-    padding: 9,
+    flexWrap: 'wrap',
+    gap: 7,
+    justifyContent: 'flex-start',
+  },
+  exampleChip: {
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  exampleText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 10,
+    fontWeight: '700',
+    writingDirection: 'rtl',
+  },
+  attachmentCard: {
+    alignItems: 'center',
+    flexDirection: 'row-reverse',
+    gap: 12,
+    padding: 10,
   },
   attachmentThumbnail: {
     backgroundColor: DALLNI_COLORS.greenLight,
-    borderRadius: 10,
-    height: 54,
-    width: 54,
+    borderRadius: 12,
+    height: 62,
+    width: 62,
   },
   attachmentCopy: {
     alignItems: 'flex-end',
     flex: 1,
-    gap: 4,
+    gap: 5,
   },
   attachmentTitle: {
     color: DALLNI_COLORS.ink,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'right',
+    fontSize: 11,
+    fontWeight: '800',
     writingDirection: 'rtl',
   },
   removeImageButton: {
     paddingVertical: 3,
   },
   removeImageText: {
-    color: DALLNI_COLORS.green,
-    fontSize: 11,
+    color: '#A3493C',
+    fontSize: 10,
     fontWeight: '700',
     writingDirection: 'rtl',
+  },
+  privacyNote: {
+    alignItems: 'flex-start',
+    flexDirection: 'row-reverse',
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  privacyIcon: {
+    color: DALLNI_COLORS.green,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  privacyText: {
+    color: DALLNI_COLORS.muted,
+    flex: 1,
+    fontSize: 10,
+    lineHeight: 17,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  footer: {
+    backgroundColor: DALLNI_COLORS.background,
+    borderTopColor: DALLNI_COLORS.border,
+    borderTopWidth: 1,
+    gap: 9,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   attachButton: {
     alignItems: 'center',
-    backgroundColor: DALLNI_COLORS.greenLight,
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
     borderRadius: 12,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    minHeight: 39,
+    paddingHorizontal: 11,
   },
   attachIcon: {
     color: DALLNI_COLORS.green,
-    fontSize: 24,
-    fontWeight: '500',
-    lineHeight: 27,
+    fontSize: 20,
+    lineHeight: 22,
   },
-  composer: {
-    alignItems: 'flex-end',
-    backgroundColor: DALLNI_COLORS.surface,
-    borderColor: DALLNI_COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row-reverse',
-    gap: 8,
-    minHeight: 54,
-    padding: 6,
-  },
-  input: {
-    color: DALLNI_COLORS.ink,
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 21,
-    maxHeight: 90,
-    minHeight: 40,
-    paddingHorizontal: 9,
-    paddingTop: 9,
-    textAlignVertical: 'top',
-    writingDirection: 'rtl',
-  },
-  sendButton: {
-    alignItems: 'center',
-    backgroundColor: DALLNI_COLORS.green,
-    borderRadius: 12,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#A5B7AF',
-  },
-  sendIcon: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  localNote: {
-    color: '#89978F',
+  attachText: {
+    color: DALLNI_COLORS.greenDark,
     fontSize: 10,
-    textAlign: 'center',
+    fontWeight: '800',
     writingDirection: 'rtl',
   },
   pressed: {

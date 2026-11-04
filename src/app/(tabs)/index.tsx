@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
-  Alert,
   StatusBar,
 } from 'react-native';
 
@@ -15,10 +14,10 @@ import { useDemoSession } from '@/context/demo-session';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 
 const categories = [
-  { icon: '📱', name: 'إلكترونيات' },
-  { icon: '🛋️', name: 'أثاث' },
-  { icon: '👟', name: 'أزياء' },
-  { icon: '🧰', name: 'قطع وأدوات' },
+  { icon: '📱', name: 'إلكترونيات', prompt: 'بدّي موبايل أو جهاز إلكتروني جديد' },
+  { icon: '🛋️', name: 'أثاث', prompt: 'عم فتّش على قطعة أثاث' },
+  { icon: '👟', name: 'أزياء', prompt: 'بدّي أشتري قطعة أزياء' },
+  { icon: '🧰', name: 'منزل ومطبخ', prompt: 'عم فتّش على غرض للمنزل أو المطبخ' },
 ];
 
 export default function HomeScreen() {
@@ -43,7 +42,7 @@ export default function HomeScreen() {
         </Text>
 
         <View style={styles.hero}>
-          <Text style={styles.heroTag}>✦ مساعد دَلّني الذكي</Text>
+          <Text style={styles.heroTag}>✦ طلبك يوصل للمحلات المناسبة</Text>
           <Text style={styles.heroTitle}>
             اطلبها بطريقتك،{"\n"}وخلي الباقي علينا.
           </Text>
@@ -52,6 +51,8 @@ export default function HomeScreen() {
             قبل ما نوصّلها للمحلات المناسبة.
           </Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="ابدأ طلب جديد"
             style={styles.primaryButton}
             onPress={() => router.push('/request')}
           >
@@ -138,19 +139,32 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        <Text style={styles.sectionTitle}>شو عم تفتّش؟</Text>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionHint}>اختار فئة وبلّش طلبك</Text>
+          <Text style={styles.sectionTitle}>شو عم تفتّش؟</Text>
+        </View>
 
         <View style={styles.categories}>
           {categories.map((category) => (
             <Pressable
               key={category.name}
-              style={styles.category}
+              accessibilityRole="button"
+              accessibilityLabel={`ابدأ طلب ضمن فئة ${category.name}`}
+              style={({ pressed }) => [styles.category, pressed && styles.categoryPressed]}
               onPress={() =>
-                Alert.alert(category.name, 'هيدي الفئة رح تكون متاحة قريباً.')
+                router.push({
+                  pathname: '/request',
+                  params: { prompt: category.prompt, category: category.name },
+                })
               }
             >
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
-              <Text style={styles.categoryName}>{category.name}</Text>
+              <View style={styles.categoryIconWrap}>
+                <Text style={styles.categoryIcon}>{category.icon}</Text>
+              </View>
+              <View style={styles.categoryCopy}>
+                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.categoryAction}>ابدأ الطلب ←</Text>
+              </View>
             </Pressable>
           ))}
         </View>
@@ -215,6 +229,7 @@ const styles = StyleSheet.create({
     color: '#7D8C85',
     fontSize: 13,
     textAlign: 'right',
+    writingDirection: 'rtl',
     lineHeight: 23,
     marginTop: 8,
     marginBottom: 24,
@@ -224,11 +239,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 23,
     alignItems: 'flex-end',
+    shadowColor: '#0D4C40',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 3,
   },
   heroTag: {
     color: '#BDE4D5',
     fontSize: 12,
     marginBottom: 13,
+    writingDirection: 'rtl',
   },
   heroTitle: {
     color: 'white',
@@ -236,6 +257,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'right',
     lineHeight: 37,
+    writingDirection: 'rtl',
   },
   heroDescription: {
     color: '#DBF0E9',
@@ -244,12 +266,16 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginTop: 12,
     marginBottom: 20,
+    writingDirection: 'rtl',
   },
   primaryButton: {
     backgroundColor: '#F0BA50',
     paddingVertical: 13,
     paddingHorizontal: 23,
     borderRadius: 13,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryText: {
     color: '#26352E',
@@ -267,6 +293,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 15,
+    minHeight: 78,
   },
   customerRequestsEntry: {
     backgroundColor: '#F0F6F2',
@@ -325,31 +352,73 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#152D27',
     textAlign: 'right',
+    marginBottom: 3,
+    writingDirection: 'rtl',
+  },
+  sectionHeading: {
+    alignItems: 'flex-end',
     marginTop: 28,
     marginBottom: 15,
+  },
+  sectionHint: {
+    color: '#8A9992',
+    fontSize: 11,
+    marginBottom: 4,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   categories: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    rowGap: 10,
   },
   category: {
-    width: '23%',
+    width: '48.5%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 17,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 12,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E7EDE9',
+    minHeight: 76,
+  },
+  categoryPressed: {
+    backgroundColor: '#F0F7F3',
+    borderColor: '#BBD8CB',
+    transform: [{ scale: 0.98 }],
+  },
+  categoryIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#EAF5F0',
   },
   categoryIcon: {
-    fontSize: 27,
-    marginBottom: 10,
+    fontSize: 23,
+  },
+  categoryCopy: {
+    alignItems: 'flex-end',
+    flex: 1,
+    marginRight: 8,
+    gap: 4,
   },
   categoryName: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#25372E',
     fontWeight: 'bold',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  categoryAction: {
+    color: '#829188',
+    fontSize: 9,
+    writingDirection: 'rtl',
   },
   infoCard: {
     backgroundColor: '#FFFFFF',

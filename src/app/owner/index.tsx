@@ -61,7 +61,7 @@ export default function ShopInboxScreen() {
           <View style={styles.noticeCopy}>
             <Text style={styles.noticeTitle}>صندوق تجريبي</Text>
             <Text style={styles.noticeText}>
-              كل شي محلي وبيتنمسح لما تسكّر التطبيق. العروض ما رح تنبعت لزبائن حقيقيين.
+              هيدي تجربة مؤقتة وبيتنمسح محتواها لما تسكّر التطبيق. العروض ما رح تنبعت لزبائن حقيقيين.
             </Text>
           </View>
         </SurfaceCard>
@@ -70,8 +70,8 @@ export default function ShopInboxScreen() {
           <Text style={styles.connectedTitle}>صندوق المحل المتصل</Text>
           <Text style={styles.connectedText}>
             {user
-              ? 'افتح الطلبات المسموح لمحلّك يشوفها من قاعدة Supabase.'
-              : 'سجّل دخولك بالبريد لتجهّز ملف المحل وتستخدم الطلبات المحفوظة على Supabase.'}
+              ? 'افتح صندوق المحل لمتابعة الطلبات والعروض المحفوظة لحسابك.'
+              : 'سجّل دخولك بالبريد لتجهّز ملف المحل وتتابع الطلبات والعروض.'}
           </Text>
           <Pressable
             accessibilityRole="button"

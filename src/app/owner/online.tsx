@@ -41,6 +41,11 @@ export default function ConnectedShopInboxScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const openRequestCount = requests.filter((request) => request.status === 'open').length;
+  const activeOrderCount = orders.filter((order) => order.stage !== 'completed').length;
+  const averageRating = ratings.length
+    ? (ratings.reduce((total, rating) => total + rating.stars, 0) / ratings.length).toFixed(1)
+    : '—';
 
   const loadWorkspace = useCallback(async () => {
     if (!user) {
@@ -95,15 +100,15 @@ export default function ConnectedShopInboxScreen() {
       <StatusBar barStyle="dark-content" />
       <FlowHeader
         title="صندوق المحل المتصل"
-        subtitle="طلبات محفوظة بقاعدة بيانات Supabase، حسب صلاحيات حسابك."
+        subtitle="تابع الطلبات المتاحة لمحلك والعروض والطلبات اللي اختار فيها الزبون عرضك."
         onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>بيانات مشروعك</Text>
+          <Text style={styles.noticeTitle}>إدارة المحل</Text>
           <Text style={styles.noticeText}>
-            الطلبات والصور والعروض تُقرأ وتُحفظ عبر جلستك المسجّلة. الصور تبقى خاصة، والروابط المؤقتة لا تُنشأ إلا إذا سمحت السياسات لحسابك بقراءتها.
+            تابع الطلبات المتاحة لمحلك، قدّم عروضك، وشوف الطلبات اللي اختار فيها الزبون عرضك.
           </Text>
         </SurfaceCard>
 
@@ -111,7 +116,7 @@ export default function ConnectedShopInboxScreen() {
           accessibilityRole="button"
           onPress={() => router.replace('/owner' as Href)}
           style={({ pressed }) => [styles.demoLink, pressed && styles.pressed]}>
-          <Text style={styles.demoLinkText}>العودة إلى تجربة المحل المحلية</Text>
+          <Text style={styles.demoLinkText}>العودة إلى تجربة المحل</Text>
         </Pressable>
 
         {isAuthLoading || isLoading ? (
@@ -122,14 +127,14 @@ export default function ConnectedShopInboxScreen() {
         ) : !user ? (
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>سجّل دخولك للمتابعة</Text>
-            <Text style={styles.stateText}>صندوق Supabase متاح للحساب المسجّل فقط.</Text>
+            <Text style={styles.stateText}>سجّل دخولك لتشوف طلبات المحل وتدير عروضك.</Text>
             <PrimaryButton label="فتح تسجيل الدخول" onPress={() => router.push('/auth' as Href)} />
           </SurfaceCard>
         ) : errorCode ? (
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>ما قدرنا نحمّل صندوق المحل</Text>
             <Text style={styles.stateText}>
-              تأكد إن مشروع Supabase متاح وإن حسابك عنده صلاحية. رمز الخطأ: {errorCode}
+              تعذّر تحميل الطلبات. تحقق من اتصال الإنترنت وحاول مرة تانية.
             </Text>
             <PrimaryButton
               label="إعادة المحاولة"
@@ -144,7 +149,7 @@ export default function ConnectedShopInboxScreen() {
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>ما في ملف محل لهالحساب بعد</Text>
             <Text style={styles.stateText}>
-              أنشئ الملف باسم المحل ومعلوماته. الملف الجديد بيضل قيد المراجعة لحد ما يوافق عليه مشغّل المشروع.
+              أنشئ ملف المحل. بنراجعه قبل ما تقدر تشوف الطلبات وترسل عروضاً.
             </Text>
             <PrimaryButton
               label="إنشاء ملف المحل"
@@ -165,9 +170,16 @@ export default function ConnectedShopInboxScreen() {
               <Text style={styles.shopDetail}>
                 الفئات: {shop.product_categories.length ? shop.product_categories.join('، ') : 'غير محددة'}
               </Text>
+              {shop.status === 'active' && (
+                <View style={styles.shopOverview}>
+                  <OverviewMetric value={String(openRequestCount)} label="طلبات مفتوحة" />
+                  <OverviewMetric value={String(activeOrderCount)} label="قيد التنفيذ" />
+                  <OverviewMetric value={averageRating} label="متوسط التقييم" />
+                </View>
+              )}
               {shop.status === 'pending' && (
                 <Text style={styles.statusNote}>
-                  الملف قيد المراجعة اليدوية. ما في صلاحية لإرسال عروض قبل التفعيل.
+                  الملف قيد المراجعة. بتقدر ترسل عروض بعد الموافقة عليه.
                 </Text>
               )}
               {shop.status === 'suspended' && (
@@ -244,9 +256,12 @@ export default function ConnectedShopInboxScreen() {
                     {order.requested_area ? (
                       <Text style={styles.orderArea}>منطقة الطلب: {order.requested_area}</Text>
                     ) : null}
-                    <Text style={styles.orderPrice}>
-                      {formatPrice(order.price_amount)} {order.currency_code}
-                    </Text>
+                    <View style={styles.orderPriceRow}>
+                      <Text style={styles.orderPriceLabel}>السعر</Text>
+                      <Text style={styles.orderPrice}>
+                        {formatPrice(order.price_amount)} {order.currency_code}
+                      </Text>
+                    </View>
                     <OrderProgress stage={order.stage} />
                     <Text style={styles.openLink}>افتح الطلب لتحديث الحالة ←</Text>
                   </Pressable>
@@ -254,13 +269,13 @@ export default function ConnectedShopInboxScreen() {
 
                 <View style={styles.sectionHeading}>
                   <Text style={styles.count}>{requests.length} طلب</Text>
-                  <Text style={styles.sectionTitle}>طلبات مسموح لمحلّك يشوفها</Text>
+                  <Text style={styles.sectionTitle}>طلبات مناسبة لمحلّك</Text>
                 </View>
                 {requests.length === 0 ? (
                   <SurfaceCard style={styles.stateCard}>
                     <Text style={styles.stateTitle}>ما في طلبات متاحة حالياً</Text>
                     <Text style={styles.stateText}>
-                      الطلبات المفتوحة أو المرتبطة بعروض محلك بتظهر هون حسب سياسات قاعدة البيانات.
+                      الطلبات المفتوحة والعروض التي قدمها محلك بتظهر هون.
                     </Text>
                   </SurfaceCard>
                 ) : requests.map((request) => (
@@ -327,6 +342,15 @@ function formatPrice(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 }
 
+function OverviewMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.overviewMetric}>
+      <Text style={styles.overviewValue}>{value}</Text>
+      <Text style={styles.overviewLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: DALLNI_COLORS.background },
   content: { gap: 12, paddingHorizontal: 20, paddingBottom: 30 },
@@ -368,7 +392,21 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  shopCard: { gap: 8, padding: 15 },
+  shopCard: { gap: 9, padding: 16 },
+  shopOverview: { flexDirection: 'row-reverse', gap: 8, marginTop: 5 },
+  overviewMetric: {
+    alignItems: 'center',
+    backgroundColor: '#F7FAF8',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    gap: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 9,
+  },
+  overviewValue: { color: DALLNI_COLORS.greenDark, fontSize: 16, fontWeight: '900' },
+  overviewLabel: { color: DALLNI_COLORS.muted, fontSize: 9, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   shopHeading: {
     alignItems: 'center',
     flexDirection: 'row-reverse',
@@ -447,19 +485,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
     borderColor: DALLNI_COLORS.border,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row-reverse',
     gap: 12,
-    padding: 11,
+    padding: 12,
   },
   orderCard: {
     backgroundColor: '#FFFFFF',
     borderColor: DALLNI_COLORS.border,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     gap: 9,
-    padding: 12,
+    padding: 14,
+    shadowColor: '#173C31',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 1,
   },
   orderHeading: { alignItems: 'flex-end', gap: 4 },
   orderItem: {
@@ -478,6 +521,16 @@ const styles = StyleSheet.create({
   },
   orderArea: { color: DALLNI_COLORS.muted, fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
   orderPrice: { color: DALLNI_COLORS.ink, fontSize: 11, fontWeight: '700', textAlign: 'right' },
+  orderPriceRow: {
+    alignItems: 'center',
+    backgroundColor: '#F3F8F5',
+    borderRadius: 10,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  orderPriceLabel: { color: DALLNI_COLORS.greenDark, fontSize: 10, fontWeight: '800', writingDirection: 'rtl' },
   orderEmptyCard: { alignItems: 'flex-end', padding: 14 },
   orderEmptyText: { color: DALLNI_COLORS.muted, fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
   ratingsCard: { gap: 10, padding: 14 },

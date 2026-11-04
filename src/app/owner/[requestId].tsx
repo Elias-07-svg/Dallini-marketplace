@@ -232,7 +232,7 @@ export default function ShopRequestDetailScreen() {
                     <Text style={styles.confirmationText}>
                       {customerRequest
                         ? 'صار ظاهر بقائمة عروض الزبون بهالجلسة. ما انبعت لزبون حقيقي وبيختفي لما تسكّر التطبيق.'
-                        : 'هيدا عرض محلي للتجربة، وما انبعت لأي زبون حقيقي.'}
+                        : 'هيدا عرض تجريبي، وما انبعت لأي زبون حقيقي.'}
                     </Text>
                   </ConfirmationPanel>
                 )}
@@ -321,7 +321,7 @@ export default function ShopRequestDetailScreen() {
                     <View style={styles.demoNote}>
                       <Text style={styles.demoNoteIcon}>ⓘ</Text>
                       <Text style={styles.demoNoteText}>
-                        العرض تجريبي ومحلي. بيظهر للزبون بهالجلسة بس، وبينمسح لما تسكّر التطبيق.
+                        العرض بيظهر للزبون بهالجلسة التجريبية بس، وبينمسح لما تسكّر التطبيق.
                       </Text>
                     </View>
                     <PrimaryButton

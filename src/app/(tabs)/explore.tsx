@@ -1,180 +1,159 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import {
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { DALLNI_COLORS } from '@/components/dallni/flow-ui';
+import { REQUEST_CATEGORIES } from '@/data/request-categories';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+const categoryIcons: Record<(typeof REQUEST_CATEGORIES)[number], string> = {
+  إلكترونيات: '📱',
+  أثاث: '🛋️',
+  رياضة: '⚽',
+  أزياء: '👟',
+  'منزل ومطبخ': '🏠',
+  'جمال وعناية': '🧴',
+  ألعاب: '🧸',
+  أخرى: '✨',
+};
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
-
+export default function ExploreScreen() {
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.brandHeader}>
+          <View style={styles.brandCopy}>
+            <Text style={styles.brandName}>دَلّني</Text>
+            <Text style={styles.brandSub}>DALLNI</Text>
+          </View>
+          <View style={styles.headerBadge}>
+            <Text style={styles.headerBadgeText}>تسوّق أذكى</Text>
+          </View>
+        </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
+        <Text style={styles.eyebrow}>استكشف دَلّني</Text>
+        <Text style={styles.title}>شو عم تفتّش؟</Text>
+        <Text style={styles.subtitle}>
+          اختار فئة، اكتب شو بدك، وخلي المحلات تبعتلك عروضها.
+        </Text>
+
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEyebrow}>✦ على ذوقك وبطريقتك</Text>
+          <Text style={styles.heroTitle}>مش لاقي اللي بدك ياه؟</Text>
+          <Text style={styles.heroDescription}>
+            ما في داعي تدوّر بين المحلات. اكتب طلبك مرة وحدة، وقارن العروض اللي بتوصلك.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="اكتب طلباً جديداً"
+            onPress={() => router.push('/request')}
+            style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}>
+            <Text style={styles.heroButtonText}>اكتب طلب جديد</Text>
+            <Text style={styles.heroButtonArrow}>←</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionCount}>{REQUEST_CATEGORIES.length} فئات</Text>
+          <Text style={styles.sectionTitle}>تصفّح حسب الفئة</Text>
+        </View>
+
+        <View style={styles.categoryGrid}>
+          {REQUEST_CATEGORIES.map((category) => (
+            <Pressable
+              key={category}
+              accessibilityRole="button"
+              accessibilityLabel={`ابدأ طلباً ضمن فئة ${category}`}
+              onPress={() => router.push({
+                pathname: '/request',
+                params: {
+                  prompt: `عم فتّش على غرض ضمن فئة ${category}`,
+                  category,
+                },
+              })}
+              style={({ pressed }) => [styles.categoryCard, pressed && styles.categoryPressed]}>
+              <View style={styles.categoryTop}>
+                <Text style={styles.categoryArrow}>←</Text>
+                <View style={styles.categoryIconWrap}>
+                  <Text style={styles.categoryIcon}>{categoryIcons[category]}</Text>
+                </View>
+              </View>
+              <Text style={styles.categoryName}>{category}</Text>
+              <Text style={styles.categoryAction}>ابدأ طلبك</Text>
             </Pressable>
-          </ExternalLink>
-        </ThemedView>
+          ))}
+        </View>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
-
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+        <View style={styles.stepsCard}>
+          <Text style={styles.stepsTitle}>كيف بتلاقي اللي بدك ياه؟</Text>
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>١</Text></View>
+            <Text style={styles.stepText}>اكتب طلبك وحدّد المنطقة.</Text>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>٢</Text></View>
+            <Text style={styles.stepText}>راجع طلبك ووافق على نشره.</Text>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>٣</Text></View>
+            <Text style={styles.stepText}>قارن العروض وتواصل عبر واتساب بعد اختيارك.</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
+  safeArea: { backgroundColor: DALLNI_COLORS.background, flex: 1 },
+  content: { gap: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30 },
+  brandHeader: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    marginBottom: 26,
   },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-  },
+  brandCopy: { alignItems: 'flex-end' },
+  brandName: { color: DALLNI_COLORS.green, fontSize: 24, fontWeight: '900', writingDirection: 'rtl' },
+  brandSub: { color: '#8A9992', fontSize: 9, letterSpacing: 2.2 },
+  headerBadge: { backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 11, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 7 },
+  headerBadgeText: { color: DALLNI_COLORS.greenDark, fontSize: 10, fontWeight: '800', writingDirection: 'rtl' },
+  eyebrow: { color: DALLNI_COLORS.green, fontSize: 11, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  title: { color: DALLNI_COLORS.ink, fontSize: 28, fontWeight: '900', marginTop: 4, textAlign: 'right', writingDirection: 'rtl' },
+  subtitle: { color: DALLNI_COLORS.muted, fontSize: 12, lineHeight: 21, marginTop: 7, marginBottom: 18, textAlign: 'right', writingDirection: 'rtl' },
+  heroCard: { alignItems: 'flex-end', backgroundColor: DALLNI_COLORS.green, borderRadius: 22, gap: 10, marginBottom: 25, padding: 19 },
+  heroEyebrow: { color: '#BDE4D5', fontSize: 10, fontWeight: '700', writingDirection: 'rtl' },
+  heroTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
+  heroDescription: { color: '#E0F1E9', fontSize: 11, lineHeight: 19, textAlign: 'right', writingDirection: 'rtl' },
+  heroButton: { alignItems: 'center', backgroundColor: DALLNI_COLORS.gold, borderRadius: 12, flexDirection: 'row-reverse', gap: 8, justifyContent: 'center', marginTop: 3, minHeight: 44, paddingHorizontal: 15 },
+  heroButtonText: { color: '#26352E', fontSize: 11, fontWeight: '900', writingDirection: 'rtl' },
+  heroButtonArrow: { color: '#26352E', fontSize: 17, lineHeight: 19 },
+  sectionHeading: { alignItems: 'center', flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle: { color: DALLNI_COLORS.ink, fontSize: 16, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
+  sectionCount: { color: DALLNI_COLORS.muted, fontSize: 10, writingDirection: 'rtl' },
+  categoryGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+  categoryCard: { backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 16, borderWidth: 1, minHeight: 104, padding: 12, width: '48.5%' },
+  categoryPressed: { backgroundColor: '#F0F7F3', borderColor: '#BBD8CB', transform: [{ scale: 0.98 }] },
+  categoryTop: { alignItems: 'center', flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  categoryIconWrap: { alignItems: 'center', backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 12, height: 38, justifyContent: 'center', width: 38 },
+  categoryIcon: { fontSize: 21 },
+  categoryArrow: { color: '#9AA8A0', fontSize: 16 },
+  categoryName: { color: DALLNI_COLORS.ink, fontSize: 12, fontWeight: '800', marginTop: 9, textAlign: 'right', writingDirection: 'rtl' },
+  categoryAction: { color: DALLNI_COLORS.green, fontSize: 9, fontWeight: '700', marginTop: 3, textAlign: 'right', writingDirection: 'rtl' },
+  stepsCard: { backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 17, borderWidth: 1, gap: 11, marginTop: 23, padding: 15 },
+  stepsTitle: { color: DALLNI_COLORS.ink, fontSize: 13, fontWeight: '900', marginBottom: 2, textAlign: 'right', writingDirection: 'rtl' },
+  stepRow: { alignItems: 'center', flexDirection: 'row-reverse', gap: 9 },
+  stepNumber: { alignItems: 'center', backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 11, height: 23, justifyContent: 'center', width: 23 },
+  stepNumberText: { color: DALLNI_COLORS.greenDark, fontSize: 10, fontWeight: '900' },
+  stepText: { color: DALLNI_COLORS.muted, flex: 1, fontSize: 10, lineHeight: 17, textAlign: 'right', writingDirection: 'rtl' },
+  pressed: { opacity: 0.82 },
 });

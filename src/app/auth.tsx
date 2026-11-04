@@ -71,6 +71,7 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
@@ -96,14 +97,14 @@ export default function AuthScreen() {
         await signIn(cleanEmail, password);
         setFeedback({
           tone: 'success',
-          text: 'تم تسجيل الدخول. افتح «أنا صاحب محل» لتستخدم ملف المحل وصندوق الطلبات المتصل.',
+          text: 'تم تسجيل الدخول. اختر من تحت إذا بدك تتابع كزبون أو تفتح صندوق المحل.',
         });
       } else {
         const hasSession = await signUp(cleanEmail, password);
         setFeedback({
           tone: 'success',
           text: hasSession
-            ? 'تم إنشاء الحساب وتسجيل الدخول. جهّز ملف المحل؛ لازم موافقة مشغّل المشروع قبل إرسال العروض.'
+            ? 'تم إنشاء الحساب وتسجيل الدخول. فيك تنشر طلباتك أو تجهّز ملف المحل من صندوق المحل.'
             : 'تم إنشاء الحساب. راجع بريدك لتأكيده، وبعدها سجّل دخول.',
         });
       }
@@ -139,7 +140,7 @@ export default function AuthScreen() {
         <SurfaceCard style={styles.card}>
           <Text style={styles.cardTitle}>حساب دَلّني</Text>
           <Text style={styles.cardDescription}>
-            سجّل دخولك لحساب Supabase لحفظ الطلبات والعروض وتحديث حالة الطلب بين الزبون والمحل. بعد اختيار العرض، التواصل بين الزبون والمحل بيكون عبر واتساب، مش برسائل داخل التطبيق.
+            سجّل دخولك لتحفظ طلباتك وعروضك وتتابع حالة الطلب. بعد اختيار العرض، التواصل بينك وبين المحل بيكون عبر واتساب.
           </Text>
 
           {usesLoopbackAddress && (
@@ -163,6 +164,20 @@ export default function AuthScreen() {
             <View style={styles.signedIn}>
               <Text style={styles.signedInLabel}>أنت مسجّل دخول بهالحساب</Text>
               <Text style={styles.emailValue} selectable>{user.email}</Text>
+              <View style={styles.accountActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.replace('/customer/requests')}
+                  style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]}>
+                  <Text style={styles.accountActionText}>طلبات الزبون</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.replace('/owner/online')}
+                  style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]}>
+                  <Text style={styles.accountActionText}>صندوق المحل</Text>
+                </Pressable>
+              </View>
               <Pressable
                 accessibilityRole="button"
                 disabled={isSubmitting}
@@ -185,16 +200,18 @@ export default function AuthScreen() {
               <View style={styles.modeSwitch}>
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityState={{ selected: mode === 'sign-in' }}
                   onPress={() => { setMode('sign-in'); setFeedback(null); }}
-                  style={[styles.modeButton, mode === 'sign-in' && styles.modeButtonActive]}>
+                  style={({ pressed }) => [styles.modeButton, mode === 'sign-in' && styles.modeButtonActive, pressed && styles.pressed]}>
                   <Text style={[styles.modeText, mode === 'sign-in' && styles.modeTextActive]}>
                     تسجيل دخول
                   </Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityState={{ selected: mode === 'sign-up' }}
                   onPress={() => { setMode('sign-up'); setFeedback(null); }}
-                  style={[styles.modeButton, mode === 'sign-up' && styles.modeButtonActive]}>
+                  style={({ pressed }) => [styles.modeButton, mode === 'sign-up' && styles.modeButtonActive, pressed && styles.pressed]}>
                   <Text style={[styles.modeText, mode === 'sign-up' && styles.modeTextActive]}>
                     حساب جديد
                   </Text>
@@ -217,18 +234,30 @@ export default function AuthScreen() {
               />
 
               <Text style={styles.label}>كلمة المرور</Text>
-              <TextInput
-                accessibilityLabel="كلمة المرور"
-                autoCapitalize="none"
-                onChangeText={setPassword}
-                placeholder="٦ أحرف على الأقل"
-                placeholderTextColor="#98A59F"
-                returnKeyType="done"
-                secureTextEntry
-                style={styles.input}
-                textAlign="right"
-                value={password}
-              />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  accessibilityLabel="كلمة المرور"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={setPassword}
+                  onSubmitEditing={() => void handleSubmit()}
+                  placeholder={mode === 'sign-up' ? '٦ أحرف على الأقل' : 'كلمة المرور'}
+                  placeholderTextColor="#98A59F"
+                  returnKeyType="done"
+                  secureTextEntry={!showPassword}
+                  style={[styles.input, styles.passwordInput]}
+                  textAlign="left"
+                  value={password}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                  accessibilityState={{ selected: showPassword }}
+                  onPress={() => setShowPassword((current) => !current)}
+                  style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}>
+                  <Text style={styles.passwordToggleText}>{showPassword ? 'إخفاء' : 'إظهار'}</Text>
+                </Pressable>
+              </View>
 
               <Pressable
                 accessibilityRole="button"
@@ -258,13 +287,15 @@ export default function AuthScreen() {
           )}
         </SurfaceCard>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.replace('/(tabs)')}
-          style={({ pressed }) => [styles.demoButton, pressed && styles.pressed]}>
-          <Text style={styles.demoButtonText}>كمّل بالتجربة المحلية</Text>
-          <Text style={styles.demoButtonNote}>ما بدها تسجيل دخول، وبياناتها بتضل بهالجلسة.</Text>
-        </Pressable>
+        {!user && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace('/(tabs)')}
+            style={({ pressed }) => [styles.demoButton, pressed && styles.pressed]}>
+            <Text style={styles.demoButtonText}>جرّب دَلّني من دون حساب</Text>
+            <Text style={styles.demoButtonNote}>ما بدها تسجيل دخول، وبيانات التجربة بتضل بهالجلسة.</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -345,6 +376,8 @@ const styles = StyleSheet.create({
   },
   modeButtonActive: {
     backgroundColor: '#FFFFFF',
+    borderColor: '#E2EAE5',
+    borderWidth: 1,
     elevation: 1,
   },
   modeText: {
@@ -374,6 +407,36 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 14,
     writingDirection: 'ltr',
+  },
+  passwordRow: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 13,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    paddingHorizontal: 6,
+  },
+  passwordInput: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    flex: 1,
+    minHeight: 48,
+  },
+  passwordToggle: {
+    alignItems: 'center',
+    backgroundColor: '#F2F6F3',
+    borderRadius: 9,
+    justifyContent: 'center',
+    minHeight: 36,
+    minWidth: 54,
+    paddingHorizontal: 7,
+  },
+  passwordToggleText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 10,
+    fontWeight: '800',
+    writingDirection: 'rtl',
   },
   primaryButton: {
     alignItems: 'center',
@@ -426,6 +489,29 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'right',
   },
+  accountActions: {
+    alignSelf: 'stretch',
+    flexDirection: 'row-reverse',
+    gap: 9,
+    marginTop: 16,
+  },
+  accountAction: {
+    alignItems: 'center',
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderColor: '#D5EAE0',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 8,
+  },
+  accountActionText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 12,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
   loading: {
     alignItems: 'center',
     flexDirection: 'row-reverse',
@@ -438,17 +524,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   feedback: {
+    borderRadius: 12,
+    borderWidth: 1,
     fontSize: 12,
     lineHeight: 19,
     marginTop: 15,
+    padding: 12,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   feedbackError: {
     color: '#A83232',
+    backgroundColor: '#FFF5F3',
+    borderColor: '#F0D4CF',
   },
   feedbackSuccess: {
     color: DALLNI_COLORS.greenDark,
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderColor: '#D5EAE0',
   },
   demoButton: {
     alignItems: 'center',
@@ -457,6 +550,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     marginTop: 16,
+    minHeight: 64,
     padding: 16,
   },
   demoButtonText: {

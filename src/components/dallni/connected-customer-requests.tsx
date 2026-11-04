@@ -55,6 +55,10 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
   const [customerContactErrorCodes, setCustomerContactErrorCodes] = useState<Record<string, string>>({});
   const [customerContactDrafts, setCustomerContactDrafts] = useState<Record<string, string>>({});
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const totalOffers = entries.reduce((total, entry) => total + entry.offers.length, 0);
+  const activeOrders = entries.filter(
+    (entry) => entry.order && entry.order.stage !== 'completed',
+  ).length;
 
   const loadData = useCallback(async () => {
     try {
@@ -236,15 +240,22 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
       <StatusBar barStyle="dark-content" />
       <FlowHeader
         title="طلباتي والعروض"
-        subtitle="طلبات حسابك وعروضها المحفوظة بقاعدة بيانات Supabase."
+        subtitle="تابع طلباتك، قارن العروض، وتواصل عبر واتساب بعد اختيار العرض."
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>صندوق حسابك المتصل</Text>
           <Text style={styles.noticeText}>
-            العروض تتحدّث عند الضغط على زر التحديث. رقم واتساب ما بينطلب إلا بعد ما يتسجل اختيارك للعرض.
+            تابع طلباتك وعروض المحلات من هون. رقم واتساب ما بينطلب إلا بعد ما تختار عرض.
           </Text>
+          {!isLoading && !errorCode && (
+            <View style={styles.overviewRow}>
+              <OverviewMetric value={String(entries.length)} label="طلباتك" />
+              <OverviewMetric value={String(totalOffers)} label="العروض" />
+              <OverviewMetric value={String(activeOrders)} label="قيد التنفيذ" />
+            </View>
+          )}
           <Pressable
             accessibilityRole="button"
             disabled={isRefreshing || selectingOfferId !== null || savingRatingOrderId !== null || savingCustomerContactOrderId !== null}
@@ -266,7 +277,7 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
         ) : errorCode ? (
           <SurfaceCard style={styles.stateCard}>
             <Text style={styles.stateTitle}>ما قدرنا نحمّل طلباتك</Text>
-            <Text style={styles.stateText}>رمز الخطأ: {errorCode}. تأكد إن مشروع Supabase متاح وحاول من جديد.</Text>
+            <Text style={styles.stateText}>تأكد من اتصال الإنترنت وحاول مرة تانية. إذا استمرت المشكلة، سجّل خروجك وادخل من جديد.</Text>
             <PrimaryButton label="إعادة المحاولة" onPress={refresh} />
           </SurfaceCard>
         ) : entries.length === 0 ? (
@@ -393,8 +404,8 @@ function CustomerRequestCard({
   return (
     <SurfaceCard style={styles.requestCard}>
       <View style={styles.requestHeading}>
-        <Text style={styles.statusTag}>{requestStatusLabel(request.status, order !== null, offers.length)}</Text>
         <Text style={styles.requestTitle}>{request.title}</Text>
+        <Text style={styles.statusTag}>{requestStatusLabel(request.status, order !== null, offers.length)}</Text>
       </View>
 
       {request.details.trim().length > 0 && (
@@ -455,7 +466,10 @@ function CustomerRequestCard({
                 </View>
                 <OfferLine label="الموقع" value={offer.shop_location_snapshot || 'الموقع غير محدد'} />
                 <OfferLine label="المنتج" value={offer.item_name} />
-                <OfferLine label="السعر" value={`${formatPrice(offer.price_amount)} ${offer.currency_code}`} />
+                <View style={styles.offerPriceLine}>
+                  <Text style={styles.offerPriceValue}>{`${formatPrice(offer.price_amount)} ${offer.currency_code}`}</Text>
+                  <Text style={styles.offerPriceLabel}>السعر</Text>
+                </View>
                 <OfferLine label="التوصيل" value={offer.delivery_note} />
               </Pressable>
             );
@@ -473,7 +487,7 @@ function CustomerRequestCard({
             <Text style={styles.errorText}>
               {selectionErrorCode === '42501'
                 ? 'الطلب لم يعد مفتوحاً أو العرض غير متاح. حدّث الصفحة لتشوف الحالة الجديدة.'
-                : `ما قدرنا نأكد الاختيار. رمز الخطأ: ${selectionErrorCode}`}
+                : 'ما قدرنا نأكد اختيارك. حدّث الصفحة وحاول مرة تانية.'}
             </Text>
           )}
 
@@ -507,9 +521,9 @@ function CustomerRequestCard({
               shopName={selectedOffer.shop_name_snapshot}
               isSaving={savingRatingOrderId === order.id}
               errorMessage={ratingErrorCode
-                ? `ما قدرنا نحفظ التقييم. رمز الخطأ: ${ratingErrorCode}`
+                ? 'ما قدرنا نحفظ التقييم. تحقق من اتصال الإنترنت وحاول مرة تانية.'
                 : null}
-              persistenceNote="تقييمك محفوظ مع الطلب في قاعدة البيانات، وبتقدر ترجع تشوفه هون."
+              persistenceNote="تقييمك محفوظ مع الطلب، وبتقدر ترجع تشوفه هون."
               submitLabel="حفظ التقييم"
               onSubmit={onSubmitRating}
             />
@@ -574,7 +588,7 @@ function CustomerRequestCard({
                 <Text style={styles.errorText}>
                   {customerContactErrorCode === 'INVALID_WHATSAPP_NUMBER'
                     ? 'اكتب رقم واتساب بصيغة دولية، مثل +961 3 123 456.'
-                    : `ما قدرنا نحفظ رقم واتساب. رمز الخطأ: ${customerContactErrorCode}`}
+                    : 'ما قدرنا نحفظ رقم واتساب. تحقق من اتصال الإنترنت وحاول مرة تانية.'}
                 </Text>
               ) : null}
             </View>
@@ -590,6 +604,15 @@ function OfferLine({ label, value }: { label: string; value: string }) {
     <View style={styles.offerLine}>
       <Text style={styles.offerValue}>{value}</Text>
       <Text style={styles.offerLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function OverviewMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.overviewMetric}>
+      <Text style={styles.overviewValue}>{value}</Text>
+      <Text style={styles.overviewLabel}>{label}</Text>
     </View>
   );
 }
@@ -613,7 +636,7 @@ function formatPrice(value: number) {
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: DALLNI_COLORS.background, flex: 1 },
   content: { gap: 13, paddingHorizontal: 20, paddingBottom: 30 },
-  noticeCard: { backgroundColor: DALLNI_COLORS.greenLight, gap: 8, padding: 14 },
+  noticeCard: { backgroundColor: DALLNI_COLORS.greenLight, gap: 10, padding: 14 },
   noticeTitle: {
     color: DALLNI_COLORS.greenDark,
     fontSize: 12,
@@ -634,6 +657,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   refreshText: { color: DALLNI_COLORS.greenDark, fontSize: 10, fontWeight: '800', writingDirection: 'rtl' },
+  overviewRow: { flexDirection: 'row-reverse', gap: 8, marginTop: 2 },
+  overviewMetric: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DCEBE3',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 9,
+  },
+  overviewValue: { color: DALLNI_COLORS.greenDark, fontSize: 17, fontWeight: '900' },
+  overviewLabel: { color: DALLNI_COLORS.muted, fontSize: 9, fontWeight: '700', writingDirection: 'rtl' },
   disabledButton: { opacity: 0.6 },
   stateCard: { alignItems: 'flex-end', gap: 9, padding: 16 },
   stateTitle: {
@@ -644,8 +681,8 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   stateText: { color: DALLNI_COLORS.muted, fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
-  requestCard: { gap: 12, padding: 15 },
-  requestHeading: { alignItems: 'flex-end', gap: 7 },
+  requestCard: { gap: 13, padding: 16 },
+  requestHeading: { alignItems: 'flex-start', flexDirection: 'row-reverse', gap: 9, justifyContent: 'space-between' },
   statusTag: {
     backgroundColor: DALLNI_COLORS.greenLight,
     borderRadius: 10,
@@ -656,8 +693,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     writingDirection: 'rtl',
+    flexShrink: 0,
   },
-  requestTitle: { color: DALLNI_COLORS.ink, fontSize: 16, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  requestTitle: { color: DALLNI_COLORS.ink, flex: 1, fontSize: 16, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   details: { color: '#566C62', fontSize: 12, lineHeight: 21, textAlign: 'right', writingDirection: 'rtl' },
   requestImage: {
     alignSelf: 'stretch',
@@ -686,6 +724,17 @@ const styles = StyleSheet.create({
   offerLine: { alignItems: 'flex-start', flexDirection: 'row-reverse', gap: 10, justifyContent: 'space-between' },
   offerLabel: { color: DALLNI_COLORS.muted, fontSize: 11, fontWeight: '700', writingDirection: 'rtl' },
   offerValue: { color: DALLNI_COLORS.ink, flex: 1, fontSize: 12, textAlign: 'left', writingDirection: 'rtl' },
+  offerPriceLine: {
+    alignItems: 'center',
+    backgroundColor: '#F3F8F5',
+    borderRadius: 10,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  offerPriceLabel: { color: DALLNI_COLORS.greenDark, fontSize: 11, fontWeight: '800', writingDirection: 'rtl' },
+  offerPriceValue: { color: DALLNI_COLORS.greenDark, fontSize: 15, fontWeight: '900' },
   waitingCard: { backgroundColor: '#F7F9F8', borderRadius: 13, padding: 12 },
   waitingText: { color: DALLNI_COLORS.muted, fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
   waitingHeading: { color: DALLNI_COLORS.ink, fontSize: 12, fontWeight: '800', marginBottom: 4, textAlign: 'right', writingDirection: 'rtl' },

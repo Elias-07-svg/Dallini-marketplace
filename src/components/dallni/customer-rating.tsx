@@ -7,6 +7,14 @@ import {
   DALLNI_COLORS,
   PrimaryButton,
 } from '@/components/dallni/flow-ui';
+
+const ratingLabels: Record<number, string> = {
+  1: 'تجربة صعبة',
+  2: 'بحاجة لتحسين',
+  3: 'جيدة',
+  4: 'جيدة جداً',
+  5: 'ممتازة',
+};
 type CustomerRatingValue = {
   stars: number;
   comment: string;
@@ -29,7 +37,7 @@ export function CustomerRating({
   onSubmit,
   isSaving = false,
   errorMessage = null,
-  persistenceNote = 'التقييم محلي وبيضل بهالجلسة التجريبية بس.',
+  persistenceNote = 'التقييم بيضل بهالجلسة التجريبية بس.',
   submitLabel = 'إرسال التقييم التجريبي',
 }: CustomerRatingProps) {
   const [stars, setStars] = useState(0);
@@ -55,7 +63,8 @@ export function CustomerRating({
 
   return (
     <View style={styles.form}>
-      <Text style={styles.title}>قيّم تجربتك مع {shopName}</Text>
+      <Text style={styles.title}>كيف كانت تجربتك؟</Text>
+      <Text style={styles.shopPrompt}>{shopName}</Text>
       <View style={styles.starRow}>
         {[1, 2, 3, 4, 5].map((value) => {
           const selected = value <= stars;
@@ -66,7 +75,11 @@ export function CustomerRating({
               accessibilityLabel={`${value} من ٥ نجوم`}
               accessibilityState={{ checked: stars === value }}
               onPress={() => setStars(value)}
-              style={({ pressed }) => [styles.starButton, pressed && styles.pressed]}>
+              style={({ pressed }) => [
+                styles.starButton,
+                selected && styles.starButtonSelected,
+                pressed && styles.pressed,
+              ]}>
               <Text style={[styles.star, selected && styles.starSelected]}>
                 {selected ? '★' : '☆'}
               </Text>
@@ -74,6 +87,9 @@ export function CustomerRating({
           );
         })}
       </View>
+      <Text style={[styles.ratingHint, stars > 0 && styles.ratingHintSelected]}>
+        {stars > 0 ? ratingLabels[stars] : 'اضغط على النجوم لتقييم تجربتك'}
+      </Text>
       <OfferField
         label="تعليق اختياري"
         placeholder="اكتب ملاحظة قصيرة عن تجربتك"
@@ -95,12 +111,12 @@ export function CustomerRating({
 
 const styles = StyleSheet.create({
   form: {
-    backgroundColor: '#F7F9F8',
+    backgroundColor: '#F8FAF9',
     borderColor: DALLNI_COLORS.border,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     gap: 10,
-    padding: 12,
+    padding: 14,
   },
   title: {
     color: DALLNI_COLORS.ink,
@@ -109,27 +125,46 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
+  shopPrompt: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 11,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   starRow: {
     alignItems: 'center',
     flexDirection: 'row-reverse',
-    gap: 8,
-    justifyContent: 'flex-start',
+    gap: 7,
+    justifyContent: 'center',
+    marginTop: 3,
   },
   starButton: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: DALLNI_COLORS.border,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
+  },
+  starButtonSelected: {
+    backgroundColor: '#FFF8E8',
+    borderColor: '#EBCB7D',
   },
   star: {
     color: '#AAB5AF',
     fontSize: 25,
     lineHeight: 30,
   },
+  ratingHint: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 10,
+    minHeight: 16,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  ratingHintSelected: { color: DALLNI_COLORS.greenDark, fontWeight: '800' },
   starSelected: {
     color: DALLNI_COLORS.gold,
   },
