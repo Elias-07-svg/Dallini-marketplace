@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -14,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -25,6 +27,7 @@ import {
 } from '@/components/dallni/flow-ui';
 
 const quickExamples = ['بدّي موبايل جديد', 'كنباية مستعملة', 'سماعات بلوتوث'];
+const MAX_REQUEST_IMAGE_DIMENSION = 1920;
 
 export default function RequestScreen() {
   const { prompt, category } = useLocalSearchParams<{
@@ -36,6 +39,7 @@ export default function RequestScreen() {
   const [details, setDetails] = useState(starterPrompt ?? '');
   const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
   const [attachmentMimeType, setAttachmentMimeType] = useState<string | null>(null);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
   const hasRequestContent = Boolean(details.trim()) || attachmentUri !== null;
 
   async function pickImage() {
@@ -43,15 +47,30 @@ export default function RequestScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.85,
+        quality: 1,
       });
 
       if (!result.canceled && result.assets[0]) {
-        setAttachmentUri(result.assets[0].uri);
-        setAttachmentMimeType(result.assets[0].mimeType ?? null);
+        setIsPreparingImage(true);
+        const imageContext = ImageManipulator.ImageManipulator.manipulate(
+          result.assets[0].uri,
+          {
+            maxWidth: MAX_REQUEST_IMAGE_DIMENSION,
+            maxHeight: MAX_REQUEST_IMAGE_DIMENSION,
+          },
+        );
+        const renderedImage = await imageContext.renderAsync();
+        const preparedImage = await renderedImage.saveAsync({
+          compress: 0.78,
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
+        setAttachmentUri(preparedImage.uri);
+        setAttachmentMimeType('image/jpeg');
       }
     } catch {
-      Alert.alert('تعذّر فتح الصور', 'جرّب تختار الصورة مرة تانية.');
+      Alert.alert('ما قدرنا نجهّز الصورة', 'اختار صورة تانية أو جرّب مرة تانية.');
+    } finally {
+      setIsPreparingImage(false);
     }
   }
 
@@ -145,6 +164,7 @@ export default function RequestScreen() {
               />
               <View style={styles.attachmentCopy}>
                 <Text style={styles.attachmentTitle}>الصورة جاهزة للإرفاق</Text>
+                <Text style={styles.attachmentNote}>جهّزناها بحجم مناسب للإرسال.</Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="إزالة الصورة المرفقة"
@@ -170,17 +190,29 @@ export default function RequestScreen() {
         <View style={styles.footer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={attachmentUri ? 'تغيير الصورة المرفقة' : 'إرفاق صورة من الجهاز'}
+            accessibilityState={{ disabled: isPreparingImage }}
+            accessibilityLabel={isPreparingImage
+              ? 'جاري تجهيز الصورة'
+              : attachmentUri
+                ? 'تغيير الصورة المرفقة'
+                : 'إرفاق صورة من الجهاز'}
+            disabled={isPreparingImage}
             onPress={pickImage}
             style={({ pressed }) => [styles.attachButton, pressed && styles.pressed]}>
-            <Text style={styles.attachIcon}>＋</Text>
-            <Text style={styles.attachText}>
-              {attachmentUri ? 'تغيير الصورة' : 'أضف صورة (اختياري)'}
-            </Text>
+            {isPreparingImage ? (
+              <ActivityIndicator color={DALLNI_COLORS.green} />
+            ) : (
+              <>
+                <Text style={styles.attachIcon}>＋</Text>
+                <Text style={styles.attachText}>
+                  {attachmentUri ? 'تغيير الصورة' : 'أضف صورة (اختياري)'}
+                </Text>
+              </>
+            )}
           </Pressable>
           <PrimaryButton
-            disabled={!hasRequestContent}
-            label="راجع الطلب"
+            disabled={!hasRequestContent || isPreparingImage}
+            label={isPreparingImage ? 'عم نجهّز الصورة…' : 'راجع الطلب'}
             onPress={openReview}
           />
         </View>
@@ -328,6 +360,11 @@ const styles = StyleSheet.create({
     color: DALLNI_COLORS.ink,
     fontSize: 11,
     fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  attachmentNote: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 9,
     writingDirection: 'rtl',
   },
   removeImageButton: {
