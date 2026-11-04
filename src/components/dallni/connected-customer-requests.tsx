@@ -5,6 +5,7 @@ import {
   Alert,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -243,7 +244,17 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
         subtitle="تابع طلباتك، قارن العروض، وتواصل عبر واتساب بعد اختيار العرض."
         onBack={() => router.back()}
       />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={(
+          <RefreshControl
+            colors={[DALLNI_COLORS.green]}
+            onRefresh={() => void refresh()}
+            refreshing={isRefreshing}
+            tintColor={DALLNI_COLORS.green}
+          />
+        )}
+        showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>صندوق حسابك المتصل</Text>
           <Text style={styles.noticeText}>

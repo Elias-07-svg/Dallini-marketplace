@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -39,6 +40,7 @@ export default function ConnectedShopInboxScreen() {
   const [orders, setOrders] = useState<ShopOwnerOrderSummary[]>([]);
   const [ratings, setRatings] = useState<ShopOwnerRating[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const openRequestCount = requests.filter((request) => request.status === 'open').length;
@@ -88,6 +90,7 @@ export default function ConnectedShopInboxScreen() {
       setRatings(result.ratings);
       setErrorCode(result.errorCode);
       setIsLoading(false);
+      setIsRefreshing(false);
     });
 
     return () => {
@@ -104,7 +107,22 @@ export default function ConnectedShopInboxScreen() {
         onBack={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={(
+          <RefreshControl
+            colors={[DALLNI_COLORS.green]}
+            onRefresh={() => {
+              if (isRefreshing) return;
+              setErrorCode(null);
+              setIsRefreshing(true);
+              setRefreshKey((value) => value + 1);
+            }}
+            refreshing={isRefreshing}
+            tintColor={DALLNI_COLORS.green}
+          />
+        )}
+        showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>إدارة المحل</Text>
           <Text style={styles.noticeText}>
@@ -139,8 +157,8 @@ export default function ConnectedShopInboxScreen() {
             <PrimaryButton
               label="إعادة المحاولة"
               onPress={() => {
-                setIsLoading(true);
                 setErrorCode(null);
+                setIsRefreshing(true);
                 setRefreshKey((value) => value + 1);
               }}
             />
@@ -195,8 +213,8 @@ export default function ConnectedShopInboxScreen() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    setIsLoading(true);
                     setErrorCode(null);
+                    setIsRefreshing(true);
                     setRefreshKey((value) => value + 1);
                   }}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
