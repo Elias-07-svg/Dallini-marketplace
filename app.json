@@ -1,37 +1,36 @@
 {
   "expo": {
-    "name": "dallni",
+    "name": "دَلّني",
     "slug": "dallni",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/dallni-icon.png",
     "scheme": "dallni",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/dallni-icon.png"
     },
     "android": {
       "package": "com.dallni.marketplace",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#176B5B",
+        "foregroundImage": "./assets/images/dallni-android-foreground.png",
+        "monochromeImage": "./assets/images/dallni-android-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "server",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/dallni-icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#F6F8F7",
+          "image": "./assets/images/dallni-splash-icon.png",
+          "imageWidth": 180
         }
       ],
       [
