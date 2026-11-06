@@ -12,13 +12,11 @@ import {
 
 import { useDemoSession } from '@/context/demo-session';
 import { useSupabaseAuth } from '@/context/supabase-auth';
-
-const categories = [
-  { icon: '📱', name: 'إلكترونيات', prompt: 'بدّي موبايل أو جهاز إلكتروني جديد' },
-  { icon: '🛋️', name: 'أثاث', prompt: 'عم فتّش على قطعة أثاث' },
-  { icon: '👟', name: 'أزياء', prompt: 'بدّي أشتري قطعة أزياء' },
-  { icon: '🧰', name: 'منزل ومطبخ', prompt: 'عم فتّش على غرض للمنزل أو المطبخ' },
-];
+import {
+  REQUEST_CATEGORIES,
+  REQUEST_CATEGORY_ICONS,
+  REQUEST_CATEGORY_PROMPTS,
+} from '@/data/request-categories';
 
 export default function HomeScreen() {
   const { approvedRequests } = useDemoSession();
@@ -145,24 +143,27 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.categories}>
-          {categories.map((category) => (
+          {REQUEST_CATEGORIES.map((category) => (
             <Pressable
-              key={category.name}
+              key={category}
               accessibilityRole="button"
-              accessibilityLabel={`ابدأ طلب ضمن فئة ${category.name}`}
+              accessibilityLabel={`ابدأ طلب ضمن فئة ${category}`}
               style={({ pressed }) => [styles.category, pressed && styles.categoryPressed]}
               onPress={() =>
                 router.push({
                   pathname: '/request',
-                  params: { prompt: category.prompt, category: category.name },
+                  params: {
+                    prompt: REQUEST_CATEGORY_PROMPTS[category],
+                    category,
+                  },
                 })
               }
             >
               <View style={styles.categoryIconWrap}>
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
+                <Text style={styles.categoryIcon}>{REQUEST_CATEGORY_ICONS[category]}</Text>
               </View>
               <View style={styles.categoryCopy}>
-                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.categoryName}>{category}</Text>
                 <Text style={styles.categoryAction}>ابدأ الطلب ←</Text>
               </View>
             </Pressable>

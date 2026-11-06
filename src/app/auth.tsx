@@ -2,16 +2,20 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import * as Linking from 'expo-linking';
 
 import { FlowHeader, SurfaceCard, DALLNI_COLORS } from '@/components/dallni/flow-ui';
 import { useSupabaseAuth } from '@/context/supabase-auth';
+import { supabase } from '@/lib/supabase';
 import type { SupabaseConfigurationIssue } from '@/lib/supabase';
 
 type AuthMode = 'sign-in' | 'sign-up';
@@ -73,6 +77,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   async function handleSubmit() {
@@ -128,9 +133,47 @@ export default function AuthScreen() {
     }
   }
 
+  async function handlePasswordReset() {
+    const cleanEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(cleanEmail)) {
+      setFeedback({ tone: 'error', text: 'اكتب بريد إلكتروني صالح قبل طلب إعادة تعيين كلمة المرور.' });
+      return;
+    }
+    if (!supabase || isSendingPasswordReset || isSubmitting) return;
+
+    setIsSendingPasswordReset(true);
+    setFeedback(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: Linking.createURL('reset-password'),
+      });
+      if (error) throw error;
+
+      setFeedback({
+        tone: 'success',
+        text: 'إذا كان هالبريد مسجّلاً، رح توصلك رسالة فيها رابط لإعادة تعيين كلمة المرور. افحص البريد غير المرغوب فيه إذا ما لقيتها.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      setFeedback({
+        tone: 'error',
+        text: /network request failed|failed to fetch|networkerror|econnrefused|timeout/i.test(message)
+          ? 'ما قدرنا نوصل بالخدمة هلّق. تحقق من الإنترنت وحاول مرة تانية.'
+          : 'ما قدرنا نطلب إعادة تعيين كلمة المرور هلّق. حاول مرة تانية.',
+      });
+    } finally {
+      setIsSendingPasswordReset(false);
+    }
+  }
+
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <FlowHeader
           title="حساب دَلّني"
           subtitle="سجّل دخول أو أنشئ حساب بالبريد وكلمة المرور."
@@ -259,15 +302,34 @@ export default function AuthScreen() {
                 </Pressable>
               </View>
 
+              {mode === 'sign-in' && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSubmitting || isSendingPasswordReset }}
+                  disabled={isSubmitting || isSendingPasswordReset}
+                  onPress={() => void handlePasswordReset()}
+                  style={({ pressed }) => [
+                    styles.forgotPasswordButton,
+                    pressed && !isSubmitting && !isSendingPasswordReset && styles.pressed,
+                  ]}>
+                  {isSendingPasswordReset ? (
+                    <ActivityIndicator color={DALLNI_COLORS.green} size="small" />
+                  ) : null}
+                  <Text style={styles.forgotPasswordText}>
+                    {isSendingPasswordReset ? 'عم نبعت التعليمات…' : 'نسيت كلمة المرور؟'}
+                  </Text>
+                </Pressable>
+              )}
+
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ disabled: isSubmitting }}
-                disabled={isSubmitting}
+                accessibilityState={{ disabled: isSubmitting || isSendingPasswordReset }}
+                disabled={isSubmitting || isSendingPasswordReset}
                 onPress={handleSubmit}
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  isSubmitting && styles.disabledButton,
-                  pressed && !isSubmitting && styles.pressed,
+                  (isSubmitting || isSendingPasswordReset) && styles.disabledButton,
+                  pressed && !isSubmitting && !isSendingPasswordReset && styles.pressed,
                 ]}>
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -297,7 +359,7 @@ export default function AuthScreen() {
           </Pressable>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -435,6 +497,20 @@ const styles = StyleSheet.create({
   passwordToggleText: {
     color: DALLNI_COLORS.greenDark,
     fontSize: 10,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  forgotPasswordButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+    gap: 7,
+    minHeight: 38,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    color: DALLNI_COLORS.green,
+    fontSize: 11,
     fontWeight: '800',
     writingDirection: 'rtl',
   },

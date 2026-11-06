@@ -10,18 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DALLNI_COLORS } from '@/components/dallni/flow-ui';
-import { REQUEST_CATEGORIES } from '@/data/request-categories';
-
-const categoryIcons: Record<(typeof REQUEST_CATEGORIES)[number], string> = {
-  إلكترونيات: '📱',
-  أثاث: '🛋️',
-  رياضة: '⚽',
-  أزياء: '👟',
-  'منزل ومطبخ': '🏠',
-  'جمال وعناية': '🧴',
-  ألعاب: '🧸',
-  أخرى: '✨',
-};
+import {
+  REQUEST_CATEGORIES,
+  REQUEST_CATEGORY_ICONS,
+  REQUEST_CATEGORY_PROMPTS,
+} from '@/data/request-categories';
 
 export default function ExploreScreen() {
   return (
@@ -76,7 +69,7 @@ export default function ExploreScreen() {
               onPress={() => router.push({
                 pathname: '/request',
                 params: {
-                  prompt: `عم فتّش على غرض ضمن فئة ${category}`,
+                  prompt: REQUEST_CATEGORY_PROMPTS[category],
                   category,
                 },
               })}
@@ -84,7 +77,7 @@ export default function ExploreScreen() {
               <View style={styles.categoryTop}>
                 <Text style={styles.categoryArrow}>←</Text>
                 <View style={styles.categoryIconWrap}>
-                  <Text style={styles.categoryIcon}>{categoryIcons[category]}</Text>
+                  <Text style={styles.categoryIcon}>{REQUEST_CATEGORY_ICONS[category]}</Text>
                 </View>
               </View>
               <Text style={styles.categoryName}>{category}</Text>
