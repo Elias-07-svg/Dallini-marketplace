@@ -62,6 +62,7 @@ function DemoCustomerRequestsScreen() {
     approvedRequests,
     rateCompletedOrder,
     selectOffer,
+    cancelRequest,
     getSelectedOfferWhatsAppNumber,
     getCustomerWhatsAppNumber,
     saveCustomerWhatsAppNumber,
@@ -69,6 +70,7 @@ function DemoCustomerRequestsScreen() {
   } = useDemoSession();
   const [pendingOfferIds, setPendingOfferIds] = useState<Record<string, string>>({});
   const [customerWhatsAppDrafts, setCustomerWhatsAppDrafts] = useState<Record<string, string>>({});
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
 
   function saveCustomerContact(requestId: string, value: string) {
     const normalizedNumber = normalizeInternationalWhatsAppNumber(value);
@@ -88,6 +90,42 @@ function DemoCustomerRequestsScreen() {
   function clearCustomerContact(requestId: string) {
     removeCustomerWhatsAppNumber(requestId);
     setCustomerWhatsAppDrafts((current) => ({ ...current, [requestId]: '' }));
+  }
+
+  function showCancelConfirmation(requestId: string) {
+    Alert.alert(
+      'إلغاء الطلب؟',
+      'رح يختفي الطلب من صندوق المحلات. الصورة المرفقة ما بتنحذف، وما فيك تلغيه بعد اختيار عرض.',
+      [
+        { text: 'رجوع', style: 'cancel' },
+        {
+          text: 'إلغاء الطلب',
+          style: 'destructive',
+          onPress: () => void cancelDemoRequest(requestId),
+        },
+      ],
+    );
+  }
+
+  async function cancelDemoRequest(requestId: string) {
+    setCancellingRequestId(requestId);
+    await new Promise<void>((resolve) => setTimeout(resolve, 220));
+    const cancelled = cancelRequest(requestId);
+    setCancellingRequestId(null);
+
+    if (!cancelled) {
+      Alert.alert(
+        'ما قدرنا نلغي الطلب',
+        'يمكن تغيّرت حالة الطلب أو تم اختيار عرض. حدّث القائمة وحاول من جديد.',
+      );
+      return;
+    }
+
+    setPendingOfferIds((current) => {
+      const next = { ...current };
+      delete next[requestId];
+      return next;
+    });
   }
 
   return (
@@ -142,7 +180,9 @@ function DemoCustomerRequestsScreen() {
               <SurfaceCard key={request.id} style={styles.requestCard}>
                 <View style={styles.requestHeading}>
                   <Text style={styles.statusTag}>
-                    {request.offers.length > 0
+                    {request.status === 'cancelled'
+                      ? 'ملغي'
+                      : request.offers.length > 0
                       ? `${request.offers.length} عروض تجريبية`
                       : 'ناطرين عرض'}
                   </Text>
@@ -165,7 +205,14 @@ function DemoCustomerRequestsScreen() {
                   />
                 )}
 
-                {request.offers.length === 0 ? (
+                {request.status === 'cancelled' ? (
+                  <View style={styles.cancelledNotice}>
+                    <Text style={styles.cancelledTitle}>ألغيت هالطلب</Text>
+                    <Text style={styles.cancelledText}>
+                      ما عاد ظاهر بصندوق المحلات. الصورة المرفقة بعدها محفوظة ضمن بيانات الطلب.
+                    </Text>
+                  </View>
+                ) : request.offers.length === 0 ? (
                   <View style={styles.waitingCard}>
                     <Text style={styles.waitingHeading}>بعده ما وصل ولا عرض</Text>
                     <Text style={styles.waitingText}>
@@ -339,6 +386,29 @@ function DemoCustomerRequestsScreen() {
                     )}
                   </View>
                 )}
+
+                {request.status === 'open' && !request.selectedOfferId && request.orderStage === null && (
+                  <View style={styles.cancelRequestSection}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="إلغاء هذا الطلب"
+                      accessibilityState={{ disabled: cancellingRequestId !== null }}
+                      disabled={cancellingRequestId !== null}
+                      onPress={() => showCancelConfirmation(request.id)}
+                      style={({ pressed }) => [
+                        styles.cancelRequestButton,
+                        cancellingRequestId !== null && styles.cancelRequestButtonDisabled,
+                        pressed && cancellingRequestId === null && styles.offerChoicePressed,
+                      ]}>
+                      {cancellingRequestId === request.id ? (
+                        <ActivityIndicator size="small" color="#A3493C" />
+                      ) : null}
+                      <Text style={styles.cancelRequestText}>
+                        {cancellingRequestId === request.id ? 'عم نلغي الطلب…' : 'إلغاء الطلب'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
               </SurfaceCard>
             );
           })
@@ -389,6 +459,49 @@ const styles = StyleSheet.create({
   requestCard: {
     gap: 12,
     padding: 15,
+  },
+  cancelledNotice: {
+    backgroundColor: '#FCEFEA',
+    borderRadius: 13,
+    gap: 4,
+    padding: 12,
+  },
+  cancelledTitle: {
+    color: '#9B493B',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  cancelledText: {
+    color: '#77554E',
+    fontSize: 10,
+    lineHeight: 17,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  cancelRequestSection: {
+    alignItems: 'flex-end',
+  },
+  cancelRequestButton: {
+    alignItems: 'center',
+    borderColor: '#E6C8C2',
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 40,
+    paddingHorizontal: 13,
+  },
+  cancelRequestButtonDisabled: {
+    opacity: 0.6,
+  },
+  cancelRequestText: {
+    color: '#A3493C',
+    fontSize: 11,
+    fontWeight: '800',
+    writingDirection: 'rtl',
   },
   requestHeading: {
     alignItems: 'flex-end',

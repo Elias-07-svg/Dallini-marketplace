@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -40,6 +42,7 @@ export type ApprovedCustomerRequest = {
   details: string;
   imageUri: string | null;
   approvedAt: number;
+  status: 'open' | 'closed' | 'cancelled';
   offers: DemoOffer[];
   selectedOfferId: string | null;
   orderStage: OrderStage | null;
@@ -67,8 +70,9 @@ type DemoSessionContextValue = {
     details: string;
     imageUri: string | null;
   }) => string;
-  confirmOffer: (requestId: string, offer: DemoOfferDraft) => string;
+  confirmOffer: (requestId: string, offer: DemoOfferDraft) => string | null;
   selectOffer: (requestId: string, offerId: string) => void;
+  cancelRequest: (requestId: string) => boolean;
   getSelectedOfferWhatsAppNumber: (requestId: string) => string | null;
   getCustomerWhatsAppNumber: (requestId: string) => string | null;
   saveCustomerWhatsAppNumber: (requestId: string, value: string) => string | null;
@@ -85,6 +89,7 @@ let nextRatingId = 1;
 
 export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const [approvedRequests, setApprovedRequests] = useState<ApprovedCustomerRequest[]>([]);
+  const approvedRequestsRef = useRef(approvedRequests);
   const [shopProfile, setShopProfile] = useState<DemoShopProfile>({
     shopName: '',
     whatsappNumber: '',
@@ -93,6 +98,10 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   });
   const [offerWhatsAppNumbers, setOfferWhatsAppNumbers] = useState<Record<string, string>>({});
   const [customerWhatsAppNumbers, setCustomerWhatsAppNumbers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    approvedRequestsRef.current = approvedRequests;
+  }, [approvedRequests]);
 
   const updateShopProfile = useCallback((profile: DemoShopProfile) => {
     setShopProfile({ ...profile, productCategories: [...profile.productCategories] });
@@ -118,6 +127,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
         details: cleanDetails,
         imageUri,
         approvedAt: Date.now(),
+        status: 'open',
         offers: [],
         selectedOfferId: null,
         orderStage: null,
@@ -131,6 +141,11 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const confirmOffer = useCallback((requestId: string, offer: DemoOfferDraft) => {
+    const currentRequest = approvedRequestsRef.current.find((request) => request.id === requestId);
+    if (!currentRequest || currentRequest.status !== 'open' || currentRequest.selectedOfferId) {
+      return null;
+    }
+
     const savedOffer: DemoOffer = {
       id: `offer-${Date.now()}-${nextOfferId++}`,
       shopName: offer.shopName,
@@ -149,7 +164,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
 
     setApprovedRequests((current) =>
       current.map((request) =>
-        request.id === requestId
+        request.id === requestId && request.status === 'open' && !request.selectedOfferId
           ? { ...request, offers: [...request.offers, savedOffer] }
           : request,
       ),
@@ -161,10 +176,12 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     setApprovedRequests((current) =>
       current.map((request) =>
         request.id === requestId &&
+        request.status === 'open' &&
         (!request.selectedOfferId || request.selectedOfferId === offerId) &&
         request.offers.some((offer) => offer.id === offerId)
           ? {
               ...request,
+              status: 'closed',
               selectedOfferId: offerId,
               orderStage:
                 request.selectedOfferId === offerId
@@ -175,6 +192,28 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
           : request,
       ),
     );
+  }, []);
+
+  const cancelRequest = useCallback((requestId: string) => {
+    const request = approvedRequestsRef.current.find((item) => item.id === requestId);
+    if (
+      !request ||
+      request.status !== 'open' ||
+      request.selectedOfferId !== null ||
+      request.orderStage !== null
+    ) {
+      return false;
+    }
+
+    setApprovedRequests((current) => current.map((item) => (
+      item.id === requestId &&
+      item.status === 'open' &&
+      item.selectedOfferId === null &&
+      item.orderStage === null
+        ? { ...item, status: 'cancelled' }
+        : item
+    )));
+    return true;
   }, []);
 
   const getSelectedOfferWhatsAppNumber = useCallback((requestId: string) => {
@@ -280,6 +319,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       addApprovedRequest,
       confirmOffer,
       selectOffer,
+      cancelRequest,
       getSelectedOfferWhatsAppNumber,
       getCustomerWhatsAppNumber,
       saveCustomerWhatsAppNumber,
@@ -295,6 +335,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       addApprovedRequest,
       confirmOffer,
       selectOffer,
+      cancelRequest,
       getSelectedOfferWhatsAppNumber,
       getCustomerWhatsAppNumber,
       saveCustomerWhatsAppNumber,

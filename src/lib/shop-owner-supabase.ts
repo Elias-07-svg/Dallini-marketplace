@@ -183,7 +183,7 @@ export async function loadOwnerInboxRequests(): Promise<ShopInboxRequest[]> {
   const { data, error } = await requireSupabase()
     .from('requests')
     .select(REQUEST_COLUMNS)
-    .neq('status', 'draft')
+    .eq('status', 'open')
     .order('created_at', { ascending: false })
     .limit(30);
 

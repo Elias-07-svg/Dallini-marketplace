@@ -27,6 +27,7 @@ import {
 } from '@/components/dallni/flow-ui';
 import {
   customerMarketplaceErrorCode,
+  cancelCustomerMarketplaceRequest,
   loadCustomerMarketplace,
   removeCustomerWhatsAppNumber,
   saveCustomerWhatsAppNumber,
@@ -47,10 +48,12 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
   const [confirmedOfferIds, setConfirmedOfferIds] = useState<Record<string, string>>({});
   const [selectionErrorCodes, setSelectionErrorCodes] = useState<Record<string, string>>({});
   const [selectionRefreshErrorCodes, setSelectionRefreshErrorCodes] = useState<Record<string, string>>({});
+  const [cancellationErrorCodes, setCancellationErrorCodes] = useState<Record<string, string>>({});
   const [ratingErrorCodes, setRatingErrorCodes] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectingOfferId, setSelectingOfferId] = useState<string | null>(null);
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
   const [savingRatingOrderId, setSavingRatingOrderId] = useState<string | null>(null);
   const [savingCustomerContactOrderId, setSavingCustomerContactOrderId] = useState<string | null>(null);
   const [customerContactErrorCodes, setCustomerContactErrorCodes] = useState<Record<string, string>>({});
@@ -97,6 +100,7 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
   }
 
   async function confirmOffer(requestId: string, offerId: string) {
+    if (cancellingRequestId) return;
     setSelectingOfferId(offerId);
     setSelectionErrorCodes((current) => {
       const next = { ...current };
@@ -138,6 +142,52 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
       }));
     }
     setSelectingOfferId(null);
+  }
+
+  function showCancelConfirmation(requestId: string) {
+    Alert.alert(
+      'إلغاء الطلب؟',
+      'رح يختفي الطلب من صندوق المحلات. الصورة المرفقة ما بتنحذف، وما فيك تلغيه بعد اختيار عرض.',
+      [
+        { text: 'رجوع', style: 'cancel' },
+        {
+          text: 'إلغاء الطلب',
+          style: 'destructive',
+          onPress: () => void cancelRequest(requestId),
+        },
+      ],
+    );
+  }
+
+  async function cancelRequest(requestId: string) {
+    if (cancellingRequestId || selectingOfferId) return;
+    setCancellingRequestId(requestId);
+    setCancellationErrorCodes((current) => {
+      const next = { ...current };
+      delete next[requestId];
+      return next;
+    });
+
+    try {
+      await cancelCustomerMarketplaceRequest(requestId);
+      setEntries((current) => current.map((entry) => (
+        entry.request.id === requestId
+          ? { ...entry, request: { ...entry.request, status: 'cancelled' as const } }
+          : entry
+      )));
+      setPendingOfferIds((current) => {
+        const next = { ...current };
+        delete next[requestId];
+        return next;
+      });
+    } catch (error) {
+      setCancellationErrorCodes((current) => ({
+        ...current,
+        [requestId]: customerMarketplaceErrorCode(error),
+      }));
+    } finally {
+      setCancellingRequestId(null);
+    }
   }
 
   async function saveRating(entry: CustomerMarketplaceEntry, stars: number, comment: string) {
@@ -269,11 +319,11 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
           )}
           <Pressable
             accessibilityRole="button"
-            disabled={isRefreshing || selectingOfferId !== null || savingRatingOrderId !== null || savingCustomerContactOrderId !== null}
+            disabled={isRefreshing || selectingOfferId !== null || cancellingRequestId !== null || savingRatingOrderId !== null || savingCustomerContactOrderId !== null}
             onPress={refresh}
             style={({ pressed }) => [
               styles.refreshButton,
-              (isRefreshing || selectingOfferId !== null || savingCustomerContactOrderId !== null) && styles.disabledButton,
+              (isRefreshing || selectingOfferId !== null || cancellingRequestId !== null || savingCustomerContactOrderId !== null) && styles.disabledButton,
               pressed && !isRefreshing && styles.pressed,
             ]}>
             <Text style={styles.refreshText}>{isRefreshing ? 'عم نحدّث…' : 'تحديث الطلبات والعروض'}</Text>
@@ -306,10 +356,12 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
             selectionErrorCode={selectionErrorCodes[entry.request.id] ?? null}
             selectionRefreshErrorCode={selectionRefreshErrorCodes[entry.request.id] ?? null}
             selectingOfferId={selectingOfferId}
+            cancellingRequestId={cancellingRequestId}
             savingRatingOrderId={savingRatingOrderId}
             savingCustomerContactOrderId={savingCustomerContactOrderId}
             ratingErrorCode={ratingErrorCodes[entry.request.id] ?? null}
             customerContactErrorCode={customerContactErrorCodes[entry.request.id] ?? null}
+            cancellationErrorCode={cancellationErrorCodes[entry.request.id] ?? null}
             customerWhatsAppDraft={customerContactDrafts[entry.request.id] ?? entry.customerWhatsAppNumber ?? ''}
             onCustomerWhatsAppChange={(value) => setCustomerContactDrafts((current) => ({
               ...current,
@@ -323,6 +375,7 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
               const offerId = pendingOfferIds[entry.request.id];
               if (offerId) void confirmOffer(entry.request.id, offerId);
             }}
+            onCancel={() => showCancelConfirmation(entry.request.id)}
             onSubmitRating={(stars, comment) => void saveRating(entry, stars, comment)}
             onSaveCustomerContact={(whatsappNumber) => void saveCustomerContact(entry, whatsappNumber)}
             onRemoveCustomerContact={() => void removeCustomerContact(entry)}
@@ -340,13 +393,16 @@ function CustomerRequestCard({
   selectionErrorCode,
   selectionRefreshErrorCode,
   selectingOfferId,
+  cancellingRequestId,
   savingRatingOrderId,
   savingCustomerContactOrderId,
   ratingErrorCode,
   customerContactErrorCode,
+  cancellationErrorCode,
   customerWhatsAppDraft,
   onChoose,
   onConfirm,
+  onCancel,
   onSubmitRating,
   onSaveCustomerContact,
   onRemoveCustomerContact,
@@ -358,13 +414,16 @@ function CustomerRequestCard({
   selectionErrorCode: string | null;
   selectionRefreshErrorCode: string | null;
   selectingOfferId: string | null;
+  cancellingRequestId: string | null;
   savingRatingOrderId: string | null;
   savingCustomerContactOrderId: string | null;
   ratingErrorCode: string | null;
   customerContactErrorCode: string | null;
+  cancellationErrorCode: string | null;
   customerWhatsAppDraft: string;
   onChoose: (offerId: string) => void;
   onConfirm: () => void;
+  onCancel: () => void;
   onSubmitRating: (stars: number, comment: string) => void;
   onSaveCustomerContact: (whatsappNumber: string) => void;
   onRemoveCustomerContact: () => void;
@@ -383,6 +442,7 @@ function CustomerRequestCard({
     : null;
   const normalizedCustomerWhatsApp = normalizeInternationalWhatsAppNumber(customerWhatsAppDraft);
   const isSavingCustomerContact = savingCustomerContactOrderId === order?.id;
+  const isCancelling = cancellingRequestId === request.id;
 
   function contactShop() {
     if (!selectedOffer || !whatsappNumber) {
@@ -435,7 +495,14 @@ function CustomerRequestCard({
         <Text style={styles.imageUnavailable}>تعذّر عرض الصورة الخاصة. حدّث الصفحة للمحاولة من جديد.</Text>
       ) : null}
 
-      {offers.length === 0 ? (
+      {request.status === 'cancelled' ? (
+        <View style={styles.cancelledNotice}>
+          <Text style={styles.cancelledTitle}>ألغيت هالطلب</Text>
+          <Text style={styles.cancelledText}>
+            ما عاد ظاهر بصندوق المحلات. الصورة المرفقة ما بتنحذف.
+          </Text>
+        </View>
+      ) : offers.length === 0 ? (
         <View style={styles.waitingCard}>
           <Text style={styles.waitingHeading}>
             {request.status === 'open' ? 'بعده ما وصل ولا عرض' : 'ما في عروض مسجلة لهالطلب'}
@@ -452,7 +519,7 @@ function CustomerRequestCard({
           {offers.map((offer) => {
             const isPending = pendingOfferId === offer.id;
             const isSelected = selectedOfferId === offer.id;
-            const isDisabled = request.status !== 'open' || hasSelection || selectingOfferId !== null;
+            const isDisabled = request.status !== 'open' || hasSelection || selectingOfferId !== null || cancellingRequestId !== null;
 
             return (
               <Pressable
@@ -606,6 +673,30 @@ function CustomerRequestCard({
           )}
         </View>
       )}
+
+      {request.status === 'open' && !hasSelection && (
+        <View style={styles.cancelRequestSection}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="إلغاء هذا الطلب"
+            accessibilityState={{ disabled: cancellingRequestId !== null || selectingOfferId !== null }}
+            disabled={cancellingRequestId !== null || selectingOfferId !== null}
+            onPress={onCancel}
+            style={({ pressed }) => [
+              styles.cancelRequestButton,
+              (cancellingRequestId !== null || selectingOfferId !== null) && styles.disabledButton,
+              pressed && !isCancelling && styles.pressed,
+            ]}>
+            {isCancelling ? <ActivityIndicator size="small" color="#A3493C" /> : null}
+            <Text style={styles.cancelRequestText}>
+              {isCancelling ? 'عم نلغي الطلب…' : 'إلغاء الطلب'}
+            </Text>
+          </Pressable>
+          {cancellationErrorCode ? (
+            <Text style={styles.errorText}>{cancellationErrorMessage(cancellationErrorCode)}</Text>
+          ) : null}
+        </View>
+      )}
     </SurfaceCard>
   );
 }
@@ -638,6 +729,16 @@ function requestStatusLabel(
   if (status === 'draft') return 'مسودة';
   if (status === 'cancelled') return 'ملغي';
   return 'مغلق';
+}
+
+function cancellationErrorMessage(code: string) {
+  if (code === '42501') {
+    return 'ما قدرنا نلغي الطلب. تأكد إنه تابع لحسابك، ثم حدّث القائمة.';
+  }
+  if (code === '23514') {
+    return 'ما عاد فيك تلغي الطلب لأنه تغيّرت حالته أو تم اختيار عرض. حدّث القائمة.';
+  }
+  return 'ما قدرنا نلغي الطلب هلق. تحقق من الاتصال وحاول مرة تانية.';
 }
 
 function formatPrice(value: number) {
@@ -693,6 +794,34 @@ const styles = StyleSheet.create({
   },
   stateText: { color: DALLNI_COLORS.muted, fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
   requestCard: { gap: 13, padding: 16 },
+  cancelledNotice: { backgroundColor: '#FCEFEA', borderRadius: 13, gap: 4, padding: 12 },
+  cancelledTitle: {
+    color: '#9B493B',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  cancelledText: {
+    color: '#77554E',
+    fontSize: 10,
+    lineHeight: 17,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  cancelRequestSection: { alignItems: 'flex-end', gap: 7 },
+  cancelRequestButton: {
+    alignItems: 'center',
+    borderColor: '#E6C8C2',
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 40,
+    paddingHorizontal: 13,
+  },
+  cancelRequestText: { color: '#A3493C', fontSize: 11, fontWeight: '800', writingDirection: 'rtl' },
   requestHeading: { alignItems: 'flex-start', flexDirection: 'row-reverse', gap: 9, justifyContent: 'space-between' },
   statusTag: {
     backgroundColor: DALLNI_COLORS.greenLight,

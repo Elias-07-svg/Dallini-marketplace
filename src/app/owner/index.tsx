@@ -22,8 +22,11 @@ export default function ShopInboxScreen() {
   const { approvedRequests, shopProfile } = useDemoSession();
   const { user, isLoading: isAuthLoading } = useSupabaseAuth();
   const [showOnlyMatches, setShowOnlyMatches] = useState(false);
+  const inboxCustomerRequests = approvedRequests.filter(
+    (request) => request.status !== 'cancelled',
+  );
   const entries = [
-    ...approvedRequests.map((request) => ({ kind: 'customer' as const, request })),
+    ...inboxCustomerRequests.map((request) => ({ kind: 'customer' as const, request })),
     ...mockShopRequests.map((request) => ({ kind: 'sample' as const, request })),
   ];
   const matchingEntries = entries.map((entry) => {

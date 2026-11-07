@@ -268,6 +268,16 @@ export async function selectCustomerOffer(requestId: string, offerId: string) {
   return data;
 }
 
+export async function cancelCustomerMarketplaceRequest(requestId: string) {
+  const { data, error } = await requireSupabase().rpc('dallni_cancel_request', {
+    p_request_id: requestId,
+  });
+
+  if (error) throw error;
+  if (typeof data !== 'string' || !data) throw new Error('REQUEST_NOT_CANCELLED');
+  return data;
+}
+
 export async function submitCustomerRating(input: {
   orderId: string;
   shopId: string;

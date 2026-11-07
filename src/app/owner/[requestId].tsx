@@ -81,9 +81,13 @@ export default function ShopRequestDetailScreen() {
   const normalizedWhatsAppNumber = normalizeInternationalWhatsAppNumber(
     shopProfile.whatsappNumber,
   );
+  const canCreateCustomerOffer = !customerRequest || (
+    customerRequest.status === 'open' && !customerRequest.selectedOfferId
+  );
   const normalizedPrice = normalizePrice(price);
   const numericPrice = Number(normalizedPrice);
   const canConfirm =
+    canCreateCustomerOffer &&
     shopProfile.shopName.trim().length > 0 &&
     normalizedWhatsAppNumber !== null &&
     itemName.trim().length > 0 &&
@@ -103,7 +107,15 @@ export default function ShopRequestDetailScreen() {
     };
 
     if (customerRequest) {
-      setLatestOfferId(confirmOffer(customerRequest.id, offerDraft));
+      const createdOfferId = confirmOffer(customerRequest.id, offerDraft);
+      if (!createdOfferId) {
+        Alert.alert(
+          'ما قدرنا نضيف العرض',
+          'الطلب ما عاد مفتوحاً أو تم اختيار عرض. ارجع لصندوق الطلبات وحدّث القائمة.',
+        );
+        return;
+      }
+      setLatestOfferId(createdOfferId);
     } else {
       const localOffer: DemoOffer = {
         id: `sample-offer-${Date.now()}-${sampleOffers.length}`,
@@ -187,10 +199,18 @@ export default function ShopRequestDetailScreen() {
               <SurfaceCard style={styles.requestCard}>
                 <View style={styles.requestMetaTop}>
                   <Text style={styles.category}>
-                    {customerRequest ? 'طلب جديد من زبون' : sampleRequest?.category}
+                    {customerRequest
+                      ? customerRequest.status === 'cancelled'
+                        ? 'طلب ملغي'
+                        : 'طلب جديد من زبون'
+                      : sampleRequest?.category}
                   </Text>
                   <Text style={styles.received}>
-                    {customerRequest ? 'موافَق عليه بهالجلسة' : sampleRequest?.received}
+                    {customerRequest
+                      ? customerRequest.status === 'cancelled'
+                        ? 'ألغاه الزبون'
+                        : 'موافَق عليه بهالجلسة'
+                      : sampleRequest?.received}
                   </Text>
                 </View>
                 <Text style={styles.requestTitle}>{request.title}</Text>
@@ -204,6 +224,11 @@ export default function ShopRequestDetailScreen() {
                   <View style={styles.customerRequestFacts}>
                     <SummaryLine label="فئة الطلب" value={customerRequest.category} />
                     <SummaryLine label="منطقة الطلب" value={customerRequest.area} />
+                    {customerRequest.status === 'cancelled' && (
+                      <Text style={styles.cancelledRequestNote}>
+                        ألغى الزبون الطلب. ما عاد ظاهر بصندوق المحلات وما فيك تضيف عليه عرضاً.
+                      </Text>
+                    )}
                   </View>
                 )}
 
@@ -336,7 +361,13 @@ export default function ShopRequestDetailScreen() {
                   </View>
                 )}
 
-                {draftOpen ? (
+                {!canCreateCustomerOffer ? (
+                  <Text style={styles.cancelledRequestNote}>
+                    {customerRequest?.status === 'cancelled'
+                      ? 'الطلب ملغي، وما فيك تضيف عرضاً جديداً.'
+                      : 'تم اختيار عرض لهذا الطلب، وما فيك تضيف عروضاً جديدة.'}
+                  </Text>
+                ) : draftOpen ? (
                   <View style={styles.form}>
                     <Text style={styles.formHeading}>حضّر عرض جديد</Text>
                     <OfferField
@@ -480,6 +511,13 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 5,
     padding: 12,
+  },
+  cancelledRequestNote: {
+    color: '#9B493B',
+    fontSize: 11,
+    lineHeight: 17,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   requestFacts: {
     alignItems: 'center',
