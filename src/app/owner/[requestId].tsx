@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 
 import { OfferField } from '@/components/dallni/offer-field';
 import { OrderProgress } from '@/components/dallni/order-progress';
@@ -28,7 +30,10 @@ import {
   type DemoOffer,
 } from '@/context/demo-session';
 import { mockShopRequests } from '@/data/shop-requests';
-import { normalizeInternationalWhatsAppNumber } from '@/utils/whatsapp';
+import {
+  createWhatsAppTextUrl,
+  normalizeInternationalWhatsAppNumber,
+} from '@/utils/whatsapp';
 
 const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
 
@@ -45,6 +50,7 @@ export default function ShopRequestDetailScreen() {
     confirmOffer,
     shopProfile,
     updateOrderStage,
+    getSelectedCustomerWhatsAppNumberForShop,
   } = useDemoSession();
   const { requestId } = useLocalSearchParams<{ requestId: string | string[] }>();
   const id = Array.isArray(requestId) ? requestId[0] : requestId;
@@ -54,6 +60,9 @@ export default function ShopRequestDetailScreen() {
   const selectedOffer = customerRequest?.offers.find(
     (offer) => offer.id === customerRequest.selectedOfferId,
   );
+  const customerWhatsAppNumber = customerRequest
+    ? getSelectedCustomerWhatsAppNumberForShop(customerRequest.id)
+    : null;
   const currentOrderStage = customerRequest?.orderStage ?? null;
   const currentStageIndex = currentOrderStage
     ? ORDER_STAGES.findIndex((stage) => stage.id === currentOrderStage)
@@ -96,9 +105,13 @@ export default function ShopRequestDetailScreen() {
     if (customerRequest) {
       setLatestOfferId(confirmOffer(customerRequest.id, offerDraft));
     } else {
-      const localOffer = {
-        ...offerDraft,
+      const localOffer: DemoOffer = {
         id: `sample-offer-${Date.now()}-${sampleOffers.length}`,
+        shopName: offerDraft.shopName,
+        shopLocation: offerDraft.shopLocation,
+        itemName: offerDraft.itemName,
+        price: offerDraft.price,
+        deliveryNote: offerDraft.deliveryNote,
       };
       setSampleOffers((current) => [...current, localOffer]);
       setLatestOfferId(localOffer.id);
@@ -108,6 +121,24 @@ export default function ShopRequestDetailScreen() {
     setPrice('');
     setDeliveryNote('');
     setDraftOpen(false);
+  }
+
+  function contactCustomer() {
+    if (!customerRequest || !selectedOffer || !customerWhatsAppNumber) return;
+
+    const message = [
+      `مرحبا، أنا صاحب محل ${selectedOffer.shopName}. عم بتواصل معك بخصوص طلبك «${customerRequest.title}».`,
+      `العرض المختار: ${selectedOffer.itemName} بسعر ${selectedOffer.price} دولار.`,
+    ].join('\n');
+    const url = createWhatsAppTextUrl(customerWhatsAppNumber, message);
+    if (!url) {
+      Alert.alert('رقم واتساب غير متاح', 'الرقم الذي شاركه الزبون غير صالح حالياً.');
+      return;
+    }
+
+    void Linking.openURL(url).catch(() => {
+      Alert.alert('تعذّر فتح واتساب', 'تأكد إن في تطبيق بيفتح روابط واتساب وحاول مرة تانية.');
+    });
   }
 
   return (
@@ -255,7 +286,6 @@ export default function ShopRequestDetailScreen() {
                         <SummaryLine label="المنتج" value={offer.itemName} />
                         <SummaryLine label="السعر" value={offer.price + ' $'} />
                         <SummaryLine label="التوصيل" value={offer.deliveryNote} />
-                        <SummaryLine label="واتساب" value={offer.whatsappNumber} />
                       </View>
                       );
                     })}
@@ -276,6 +306,21 @@ export default function ShopRequestDetailScreen() {
                       <SummaryLine label="التوصيل" value={selectedOffer.deliveryNote} />
                     </View>
                     <OrderProgress stage={currentOrderStage} />
+                    {customerWhatsAppNumber ? (
+                      <View style={styles.customerWhatsAppSection}>
+                        <PrimaryButton
+                          label="تواصل مع الزبون عبر واتساب"
+                          onPress={contactCustomer}
+                        />
+                        <Text style={styles.contactNote}>
+                          رح يفتح واتساب برسالة جاهزة، وما بتنبعت إلا إذا ضغطت إرسال.
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.contactNoticeText}>
+                        بيقدر الزبون يشارك رقم واتساب مع المحل المختار بعد ما يختار عرضك.
+                      </Text>
+                    )}
                     {nextOrderStage ? (
                       <PrimaryButton
                         label={'تحديث الحالة إلى: ' + nextOrderStage.label}
@@ -595,6 +640,23 @@ const styles = StyleSheet.create({
     color: DALLNI_COLORS.ink,
     fontSize: 13,
     fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  customerWhatsAppSection: {
+    gap: 6,
+  },
+  contactNote: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 10,
+    lineHeight: 16,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  contactNoticeText: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 10,
+    lineHeight: 17,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

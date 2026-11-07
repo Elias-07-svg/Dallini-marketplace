@@ -6,11 +6,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { normalizeInternationalWhatsAppNumber } from '@/utils/whatsapp';
 
 export type DemoOffer = {
   id: string;
   shopName: string;
-  whatsappNumber: string;
   shopLocation: string;
   itemName: string;
   price: string;
@@ -46,7 +46,7 @@ export type ApprovedCustomerRequest = {
   rating: DemoShopRating | null;
 };
 
-export type DemoOfferDraft = Omit<DemoOffer, 'id'>;
+export type DemoOfferDraft = Omit<DemoOffer, 'id'> & { whatsappNumber: string };
 
 export const ORDER_STAGES = [
   { id: 'confirmed', label: 'تم تأكيد الطلب', shortLabel: 'مؤكّد' },
@@ -69,6 +69,11 @@ type DemoSessionContextValue = {
   }) => string;
   confirmOffer: (requestId: string, offer: DemoOfferDraft) => string;
   selectOffer: (requestId: string, offerId: string) => void;
+  getSelectedOfferWhatsAppNumber: (requestId: string) => string | null;
+  getCustomerWhatsAppNumber: (requestId: string) => string | null;
+  saveCustomerWhatsAppNumber: (requestId: string, value: string) => string | null;
+  removeCustomerWhatsAppNumber: (requestId: string) => void;
+  getSelectedCustomerWhatsAppNumberForShop: (requestId: string) => string | null;
   updateOrderStage: (requestId: string, stage: OrderStage) => void;
   rateCompletedOrder: (requestId: string, stars: number, comment: string) => void;
 };
@@ -86,6 +91,8 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
     location: '',
     productCategories: [],
   });
+  const [offerWhatsAppNumbers, setOfferWhatsAppNumbers] = useState<Record<string, string>>({});
+  const [customerWhatsAppNumbers, setCustomerWhatsAppNumbers] = useState<Record<string, string>>({});
 
   const updateShopProfile = useCallback((profile: DemoShopProfile) => {
     setShopProfile({ ...profile, productCategories: [...profile.productCategories] });
@@ -124,7 +131,22 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const confirmOffer = useCallback((requestId: string, offer: DemoOfferDraft) => {
-    const savedOffer = { ...offer, id: `offer-${Date.now()}-${nextOfferId++}` };
+    const savedOffer: DemoOffer = {
+      id: `offer-${Date.now()}-${nextOfferId++}`,
+      shopName: offer.shopName,
+      shopLocation: offer.shopLocation,
+      itemName: offer.itemName,
+      price: offer.price,
+      deliveryNote: offer.deliveryNote,
+    };
+    const normalizedWhatsAppNumber = normalizeInternationalWhatsAppNumber(offer.whatsappNumber);
+    if (normalizedWhatsAppNumber) {
+      setOfferWhatsAppNumbers((current) => ({
+        ...current,
+        [savedOffer.id]: normalizedWhatsAppNumber,
+      }));
+    }
+
     setApprovedRequests((current) =>
       current.map((request) =>
         request.id === requestId
@@ -138,7 +160,9 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
   const selectOffer = useCallback((requestId: string, offerId: string) => {
     setApprovedRequests((current) =>
       current.map((request) =>
-        request.id === requestId && request.offers.some((offer) => offer.id === offerId)
+        request.id === requestId &&
+        (!request.selectedOfferId || request.selectedOfferId === offerId) &&
+        request.offers.some((offer) => offer.id === offerId)
           ? {
               ...request,
               selectedOfferId: offerId,
@@ -152,6 +176,55 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       ),
     );
   }, []);
+
+  const getSelectedOfferWhatsAppNumber = useCallback((requestId: string) => {
+    const request = approvedRequests.find((item) => item.id === requestId);
+    if (!request?.selectedOfferId) return null;
+    const selectedOffer = request.offers.find((offer) => offer.id === request.selectedOfferId);
+    if (!selectedOffer) return null;
+    return offerWhatsAppNumbers[selectedOffer.id] ?? null;
+  }, [approvedRequests, offerWhatsAppNumbers]);
+
+  const getCustomerWhatsAppNumber = useCallback((requestId: string) => {
+    const request = approvedRequests.find((item) => item.id === requestId);
+    if (!request?.selectedOfferId) return null;
+    if (!request.offers.some((offer) => offer.id === request.selectedOfferId)) return null;
+    return customerWhatsAppNumbers[requestId] ?? null;
+  }, [approvedRequests, customerWhatsAppNumbers]);
+
+  const saveCustomerWhatsAppNumber = useCallback((requestId: string, value: string) => {
+    const request = approvedRequests.find((item) => item.id === requestId);
+    const selectedOffer = request?.selectedOfferId
+      ? request.offers.find((offer) => offer.id === request.selectedOfferId)
+      : null;
+    const normalizedNumber = normalizeInternationalWhatsAppNumber(value);
+    if (!request?.selectedOfferId || !selectedOffer || !normalizedNumber) return null;
+
+    setCustomerWhatsAppNumbers((current) => ({ ...current, [requestId]: normalizedNumber }));
+    return normalizedNumber;
+  }, [approvedRequests]);
+
+  const removeCustomerWhatsAppNumber = useCallback((requestId: string) => {
+    const request = approvedRequests.find((item) => item.id === requestId);
+    if (!request?.selectedOfferId) return;
+    setCustomerWhatsAppNumbers((current) => {
+      const next = { ...current };
+      delete next[requestId];
+      return next;
+    });
+  }, [approvedRequests]);
+
+  const getSelectedCustomerWhatsAppNumberForShop = useCallback((requestId: string) => {
+    const request = approvedRequests.find((item) => item.id === requestId);
+    if (!request?.selectedOfferId) return null;
+    const selectedOffer = request.offers.find((offer) => offer.id === request.selectedOfferId);
+    if (!selectedOffer) return null;
+    const offerContact = offerWhatsAppNumbers[selectedOffer.id];
+    if (!selectedOffer || !offerContact || selectedOffer.shopName !== shopProfile.shopName) {
+      return null;
+    }
+    return customerWhatsAppNumbers[requestId] ?? null;
+  }, [approvedRequests, customerWhatsAppNumbers, offerWhatsAppNumbers, shopProfile.shopName]);
 
   const updateOrderStage = useCallback((requestId: string, stage: OrderStage) => {
     setApprovedRequests((current) =>
@@ -207,6 +280,11 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       addApprovedRequest,
       confirmOffer,
       selectOffer,
+      getSelectedOfferWhatsAppNumber,
+      getCustomerWhatsAppNumber,
+      saveCustomerWhatsAppNumber,
+      removeCustomerWhatsAppNumber,
+      getSelectedCustomerWhatsAppNumberForShop,
       updateOrderStage,
       rateCompletedOrder,
     }),
@@ -217,6 +295,11 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       addApprovedRequest,
       confirmOffer,
       selectOffer,
+      getSelectedOfferWhatsAppNumber,
+      getCustomerWhatsAppNumber,
+      saveCustomerWhatsAppNumber,
+      removeCustomerWhatsAppNumber,
+      getSelectedCustomerWhatsAppNumberForShop,
       updateOrderStage,
       rateCompletedOrder,
     ],

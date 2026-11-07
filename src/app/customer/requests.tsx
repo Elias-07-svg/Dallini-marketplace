@@ -9,6 +9,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,8 +58,37 @@ export default function CustomerRequestsScreen() {
 }
 
 function DemoCustomerRequestsScreen() {
-  const { approvedRequests, rateCompletedOrder, selectOffer } = useDemoSession();
+  const {
+    approvedRequests,
+    rateCompletedOrder,
+    selectOffer,
+    getSelectedOfferWhatsAppNumber,
+    getCustomerWhatsAppNumber,
+    saveCustomerWhatsAppNumber,
+    removeCustomerWhatsAppNumber,
+  } = useDemoSession();
   const [pendingOfferIds, setPendingOfferIds] = useState<Record<string, string>>({});
+  const [customerWhatsAppDrafts, setCustomerWhatsAppDrafts] = useState<Record<string, string>>({});
+
+  function saveCustomerContact(requestId: string, value: string) {
+    const normalizedNumber = normalizeInternationalWhatsAppNumber(value);
+    if (!normalizedNumber) {
+      Alert.alert('رقم واتساب غير صالح', 'اكتب الرقم بصيغة دولية، مثل +961 3 123 456.');
+      return;
+    }
+
+    const savedNumber = saveCustomerWhatsAppNumber(requestId, normalizedNumber);
+    if (!savedNumber) {
+      Alert.alert('اختار عرض أولاً', 'مشاركة الرقم متاحة بعد ما تأكد اختيار عرض.');
+      return;
+    }
+    setCustomerWhatsAppDrafts((current) => ({ ...current, [requestId]: savedNumber }));
+  }
+
+  function clearCustomerContact(requestId: string) {
+    removeCustomerWhatsAppNumber(requestId);
+    setCustomerWhatsAppDrafts((current) => ({ ...current, [requestId]: '' }));
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -70,11 +100,12 @@ function DemoCustomerRequestsScreen() {
       />
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <SurfaceCard style={styles.demoNotice}>
           <Text style={styles.demoNoticeTitle}>تجربة مؤقتة</Text>
           <Text style={styles.demoNoticeText}>
-            الطلبات والصور والعروض بتضلّ بهالجلسة وبتنمسح لما تسكّر التطبيق. ما في شي بينبعت لزبون أو محل حقيقي.
+            الطلبات والصور والأرقام بتضلّ بهالجلسة وبتنمسح لما تسكّر التطبيق. رسائل واتساب بتضلّ مسودة وما بتنبعت إلا إذا ضغطت إرسال.
           </Text>
         </SurfaceCard>
 
@@ -93,8 +124,17 @@ function DemoCustomerRequestsScreen() {
               (offer) => offer.id === request.selectedOfferId,
             );
             const whatsappNumber = selectedOffer
-              ? normalizeInternationalWhatsAppNumber(selectedOffer.whatsappNumber ?? '')
+              ? normalizeInternationalWhatsAppNumber(
+                  getSelectedOfferWhatsAppNumber(request.id) ?? '',
+                )
               : null;
+            const savedCustomerWhatsAppNumber = request.selectedOfferId
+              ? getCustomerWhatsAppNumber(request.id)
+              : null;
+            const customerWhatsAppDraft =
+              customerWhatsAppDrafts[request.id] ?? savedCustomerWhatsAppNumber ?? '';
+            const normalizedCustomerWhatsAppNumber =
+              normalizeInternationalWhatsAppNumber(customerWhatsAppDraft);
             const selectionConfirmed =
               selectedOffer !== undefined && pendingOfferId === selectedOffer.id;
 
@@ -138,13 +178,15 @@ function DemoCustomerRequestsScreen() {
                     {request.offers.map((offer) => {
                       const isPending = pendingOfferId === offer.id;
                       const isSelected = request.selectedOfferId === offer.id;
+                      const isSelectionLocked = request.selectedOfferId !== null;
 
                       return (
                         <Pressable
                           key={offer.id}
                           accessibilityRole="radio"
                           accessibilityLabel={`اختيار عرض من ${offer.shopName} بسعر ${offer.price} دولار`}
-                          accessibilityState={{ checked: isPending }}
+                          accessibilityState={{ checked: isPending, disabled: isSelectionLocked }}
+                          disabled={isSelectionLocked}
                           onPress={() =>
                             setPendingOfferIds((current) => ({
                               ...current,
@@ -176,7 +218,7 @@ function DemoCustomerRequestsScreen() {
                       );
                     })}
 
-                    {pendingOfferId && !selectionConfirmed && (
+                    {!request.selectedOfferId && pendingOfferId && !selectionConfirmed && (
                       <PrimaryButton
                         label="تأكيد اختيار العرض"
                         onPress={() => selectOffer(request.id, pendingOfferId)}
@@ -219,7 +261,7 @@ function DemoCustomerRequestsScreen() {
                           label="تواصل عبر واتساب"
                           onPress={() => {
                             const url = createWhatsAppClickToChatUrl(
-                              selectedOffer.whatsappNumber ?? '',
+                              getSelectedOfferWhatsAppNumber(request.id) ?? '',
                               {
                                 requestTitle: request.title,
                                 requestDetails: request.details,
@@ -251,6 +293,48 @@ function DemoCustomerRequestsScreen() {
                             ? 'رح يفتح واتساب برسالة جاهزة. ما بتنرسل إلا لما تضغط إرسال.'
                             : 'رقم واتساب للمحل غير متوفر أو غير صالح.'}
                         </Text>
+                      </View>
+                    )}
+
+                    {selectionConfirmed && selectedOffer && (
+                      <View style={styles.customerContactSection}>
+                        <Text style={styles.offerHeading}>شارك رقمك مع المحل المختار (اختياري)</Text>
+                        <Text style={styles.whatsappNote}>
+                          الرقم بيظهر للمحل اللي اخترته بس، وبيضل محفوظ بهالجلسة. ما بينرسل لحاله.
+                        </Text>
+                        <TextInput
+                          accessibilityLabel="رقم واتساب الذي ستشاركه مع المحل المختار"
+                          accessibilityHint="اكتب رقمك الدولي واحفظه حتى يتمكن المحل المختار من التواصل معك."
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          keyboardType="phone-pad"
+                          maxLength={20}
+                          onChangeText={(value) => setCustomerWhatsAppDrafts((current) => ({
+                            ...current,
+                            [request.id]: value,
+                          }))}
+                          placeholder="مثلاً: +961 3 123 456"
+                          placeholderTextColor="#9AA8A0"
+                          style={styles.customerContactInput}
+                          textAlign="right"
+                          value={customerWhatsAppDraft}
+                        />
+                        <PrimaryButton
+                          disabled={!normalizedCustomerWhatsAppNumber}
+                          label={savedCustomerWhatsAppNumber
+                            ? 'تحديث الرقم المشترك'
+                            : 'مشاركة الرقم مع المحل'}
+                          onPress={() => saveCustomerContact(request.id, customerWhatsAppDraft)}
+                        />
+                        {savedCustomerWhatsAppNumber ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="إلغاء مشاركة رقم واتساب مع المحل"
+                            onPress={() => clearCustomerContact(request.id)}
+                            style={({ pressed }) => [styles.removeContactButton, pressed && styles.offerChoicePressed]}>
+                            <Text style={styles.removeContactText}>إلغاء مشاركة الرقم</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
                     )}
                   </View>
@@ -362,6 +446,34 @@ const styles = StyleSheet.create({
   },
   whatsappSection: {
     gap: 6,
+  },
+  customerContactSection: {
+    backgroundColor: '#F7F9F8',
+    borderRadius: 12,
+    gap: 8,
+    padding: 12,
+  },
+  customerContactInput: {
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    color: DALLNI_COLORS.ink,
+    fontSize: 13,
+    minHeight: 45,
+    paddingHorizontal: 12,
+    writingDirection: 'ltr',
+  },
+  removeContactButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+  },
+  removeContactText: {
+    color: '#A3493C',
+    fontSize: 10,
+    fontWeight: '800',
+    writingDirection: 'rtl',
   },
   whatsappNote: {
     color: DALLNI_COLORS.muted,
