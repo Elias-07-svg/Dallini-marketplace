@@ -1,6 +1,15 @@
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfferField } from '@/components/dallni/offer-field';
@@ -11,6 +20,7 @@ import {
   SurfaceCard,
 } from '@/components/dallni/flow-ui';
 import { useSupabaseAuth } from '@/context/supabase-auth';
+import { REQUEST_CATEGORIES } from '@/data/request-categories';
 import {
   createOwnerShop,
   loadOwnerShop,
@@ -26,14 +36,30 @@ function splitList(value: string, maxItems: number) {
     .slice(0, maxItems);
 }
 
+function normalizeCategories(categories: string[]) {
+  return Array.from(new Set(categories.map((category) => category.trim()).filter(Boolean)));
+}
+
+function mergeServiceAreas(existingAreas: string[], additions: string[]) {
+  const merged = [...existingAreas];
+  for (const area of additions) {
+    const cleanArea = area.trim();
+    if (cleanArea && !merged.some((existingArea) => existingArea.trim() === cleanArea)) {
+      merged.push(cleanArea);
+    }
+  }
+  return merged;
+}
+
 export default function ConnectedShopProfileScreen() {
   const { user, isLoading: isAuthLoading } = useSupabaseAuth();
   const [shop, setShop] = useState<OwnerShopProfile | null>(null);
   const [shopName, setShopName] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [location, setLocation] = useState('');
-  const [serviceAreasText, setServiceAreasText] = useState('');
-  const [categoriesText, setCategoriesText] = useState('');
+  const [serviceAreas, setServiceAreas] = useState<string[]>([]);
+  const [serviceAreaDraft, setServiceAreaDraft] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -62,8 +88,9 @@ export default function ConnectedShopProfileScreen() {
       setShopName(result.profile?.shop_name ?? '');
       setWhatsappNumber(result.profile?.whatsapp_number ?? '');
       setLocation(result.profile?.location ?? '');
-      setServiceAreasText(result.profile?.service_areas.join('، ') ?? '');
-      setCategoriesText(result.profile?.product_categories.join('، ') ?? '');
+      setServiceAreas(result.profile?.service_areas ?? []);
+      setServiceAreaDraft('');
+      setSelectedCategories(normalizeCategories(result.profile?.product_categories ?? []));
       setErrorCode(result.errorCode);
       setIsLoading(false);
     });
@@ -76,16 +103,36 @@ export default function ConnectedShopProfileScreen() {
   const normalizedWhatsAppNumber = normalizeInternationalWhatsAppNumber(whatsappNumber);
   const hasInvalidWhatsAppNumber = whatsappNumber.trim().length > 0 && !normalizedWhatsAppNumber;
   const canSave = Boolean(user) && shopName.trim().length > 0 && !hasInvalidWhatsAppNumber && !isSaving;
+  const customCategories = normalizeCategories(selectedCategories).filter(
+    (category) => !REQUEST_CATEGORIES.some((catalogCategory) => catalogCategory === category),
+  );
+
+  function addServiceAreas() {
+    const additions = splitList(serviceAreaDraft, 20);
+    if (additions.length === 0 || isSaving) return;
+
+    setServiceAreas((current) => mergeServiceAreas(current, additions));
+    setServiceAreaDraft('');
+  }
+
+  function removeServiceArea(indexToRemove: number) {
+    if (isSaving) return;
+    setServiceAreas((current) => current.filter((_, index) => index !== indexToRemove));
+  }
 
   async function saveProfile() {
     if (!user || !canSave) return;
+
+    const areasToSave = mergeServiceAreas(serviceAreas, splitList(serviceAreaDraft, 20));
+    setServiceAreas(areasToSave);
+    setServiceAreaDraft('');
 
     const input: OwnerShopProfileInput = {
       shop_name: shopName.trim().slice(0, 70),
       whatsapp_number: normalizedWhatsAppNumber ?? '',
       location: location.trim().slice(0, 100),
-      service_areas: splitList(serviceAreasText, 20),
-      product_categories: splitList(categoriesText, 20),
+      service_areas: areasToSave,
+      product_categories: normalizeCategories(selectedCategories),
     };
 
     setIsSaving(true);
@@ -184,24 +231,110 @@ export default function ConnectedShopProfileScreen() {
                 onChangeText={setLocation}
                 maxLength={100}
               />
-              <OfferField
-                label="مناطق الخدمة"
-                placeholder="بيروت، جونية، المتن"
-                value={serviceAreasText}
-                onChangeText={setServiceAreasText}
-                multiline
-                maxLength={300}
-              />
-              <Text style={styles.hint}>اكتب كل منطقة وافصل بينها بفاصلة، مثل بيروت، جونية، المتن.</Text>
-              <OfferField
-                label="فئات المنتجات"
-                placeholder="إلكترونيات، أثاث، رياضة"
-                value={categoriesText}
-                onChangeText={setCategoriesText}
-                multiline
-                maxLength={300}
-              />
-              <Text style={styles.hint}>افصل الفئات بفاصلة، واكتبها مثل الفئات الظاهرة بطلبات الزبائن.</Text>
+              <View style={styles.serviceAreaField}>
+                <Text style={styles.fieldLabel}>مناطق الخدمة</Text>
+                <View style={styles.serviceAreaInputRow}>
+                  <TextInput
+                    accessibilityLabel="منطقة خدمة جديدة"
+                    accessibilityHint="اكتب المنطقة واضغط إضافة لتظهر ضمن المناطق المحفوظة."
+                    autoCapitalize="sentences"
+                    autoCorrect={false}
+                    editable={!isSaving}
+                    maxLength={300}
+                    onChangeText={setServiceAreaDraft}
+                    onSubmitEditing={addServiceAreas}
+                    placeholder="مثلاً: بيروت، الحمرا"
+                    placeholderTextColor="#9AA8A0"
+                    returnKeyType="done"
+                    style={styles.serviceAreaInput}
+                    textAlign="right"
+                    value={serviceAreaDraft}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="إضافة منطقة خدمة"
+                    accessibilityState={{ disabled: !serviceAreaDraft.trim() || isSaving }}
+                    disabled={!serviceAreaDraft.trim() || isSaving}
+                    onPress={addServiceAreas}
+                    style={({ pressed }) => [
+                      styles.addServiceAreaButton,
+                      (!serviceAreaDraft.trim() || isSaving) && styles.serviceAreaButtonDisabled,
+                      pressed && styles.serviceAreaButtonPressed,
+                    ]}>
+                    <Text style={styles.addServiceAreaText}>إضافة</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.hint}>اكتب المنطقة واضغط إضافة. اضغط على المنطقة لإزالتها.</Text>
+                {serviceAreas.length > 0 ? (
+                  <View style={styles.serviceAreaChips}>
+                    {serviceAreas.map((area, index) => (
+                      <Pressable
+                        key={`${index}:${area}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`إزالة منطقة الخدمة ${area}`}
+                        accessibilityHint="إزالة هذه المنطقة من قائمة الخدمة."
+                        accessibilityState={{ disabled: isSaving }}
+                        disabled={isSaving}
+                        onPress={() => removeServiceArea(index)}
+                        style={({ pressed }) => [
+                          styles.serviceAreaChip,
+                          pressed && !isSaving && styles.serviceAreaChipPressed,
+                        ]}>
+                        <Text style={styles.serviceAreaChipText}>{area}</Text>
+                        <Text style={styles.serviceAreaChipRemove}>×</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.emptyServiceAreas}>ما أضفت مناطق خدمة بعد.</Text>
+                )}
+              </View>
+              <View style={styles.categoryField}>
+                <Text style={styles.fieldLabel}>فئات المنتجات</Text>
+                <Text style={styles.hint}>اختار كل الفئات اللي بتوفرها.</Text>
+                <View style={styles.categoryChips}>
+                  {REQUEST_CATEGORIES.map((category) => {
+                    const isSelected = selectedCategories.includes(category);
+
+                    return (
+                      <Pressable
+                        key={category}
+                        accessibilityRole="checkbox"
+                        accessibilityLabel={`فئة ${category}`}
+                        accessibilityState={{ checked: isSelected, disabled: isSaving }}
+                        disabled={isSaving}
+                        onPress={() => setSelectedCategories((current) => (
+                          current.includes(category)
+                            ? current.filter((item) => item !== category)
+                            : [...current, category]
+                        ))}
+                        style={({ pressed }) => [
+                          styles.categoryChip,
+                          isSelected && styles.categoryChipSelected,
+                          pressed && !isSaving && styles.categoryChipPressed,
+                        ]}>
+                        <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}>
+                          {category}
+                        </Text>
+                        <Text style={[styles.categoryChipMark, isSelected && styles.categoryChipMarkSelected]}>
+                          {isSelected ? '✓' : '+'}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {customCategories.length > 0 && (
+                  <View style={styles.customCategoryNote}>
+                    <Text style={styles.customCategoryTitle}>فئات إضافية محفوظة</Text>
+                    <Text style={styles.customCategoryText}>
+                      {customCategories.join('، ')}
+                    </Text>
+                    <Text style={styles.customCategoryHint}>
+                      رح تضل محفوظة عند تعديل الملف.
+                    </Text>
+                  </View>
+                )}
+              </View>
 
               {errorCode && (
                 <Text style={styles.errorText}>ما قدرنا نحفظ ملف المحل. تحقق من اتصال الإنترنت وحاول مرة تانية.</Text>
@@ -288,6 +421,153 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 16,
     marginTop: -8,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  fieldLabel: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  serviceAreaField: { gap: 8 },
+  serviceAreaInputRow: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    paddingHorizontal: 6,
+  },
+  serviceAreaInput: {
+    color: DALLNI_COLORS.ink,
+    flex: 1,
+    fontSize: 14,
+    minHeight: 48,
+    paddingHorizontal: 8,
+    writingDirection: 'rtl',
+  },
+  addServiceAreaButton: {
+    alignItems: 'center',
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderRadius: 9,
+    justifyContent: 'center',
+    minHeight: 36,
+    minWidth: 60,
+    paddingHorizontal: 9,
+  },
+  addServiceAreaText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 10,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  serviceAreaButtonDisabled: { opacity: 0.55 },
+  serviceAreaButtonPressed: { opacity: 0.8 },
+  serviceAreaChips: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  serviceAreaChip: {
+    alignItems: 'center',
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderColor: '#D9EAE1',
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 10,
+  },
+  serviceAreaChipPressed: { opacity: 0.75 },
+  serviceAreaChipText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 11,
+    fontWeight: '700',
+    writingDirection: 'rtl',
+  },
+  serviceAreaChipRemove: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  emptyServiceAreas: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 10,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  categoryField: { gap: 8 },
+  categoryChips: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 11,
+  },
+  categoryChipSelected: {
+    backgroundColor: DALLNI_COLORS.greenLight,
+    borderColor: DALLNI_COLORS.green,
+  },
+  categoryChipPressed: {
+    opacity: 0.8,
+  },
+  categoryChipText: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 11,
+    fontWeight: '700',
+    writingDirection: 'rtl',
+  },
+  categoryChipTextSelected: {
+    color: DALLNI_COLORS.greenDark,
+  },
+  categoryChipMark: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  categoryChipMarkSelected: {
+    color: DALLNI_COLORS.greenDark,
+  },
+  customCategoryNote: {
+    backgroundColor: '#F7F9F8',
+    borderRadius: 11,
+    gap: 4,
+    padding: 10,
+  },
+  customCategoryTitle: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  customCategoryText: {
+    color: DALLNI_COLORS.ink,
+    fontSize: 10,
+    lineHeight: 16,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  customCategoryHint: {
+    color: DALLNI_COLORS.muted,
+    fontSize: 9,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

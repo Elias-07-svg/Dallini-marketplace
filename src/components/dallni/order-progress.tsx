@@ -8,14 +8,20 @@ const arabicNumbers = ['١', '٢', '٣', '٤'];
 export function OrderProgress({ stage }: { stage: OrderStage }) {
   const currentIndex = Math.max(0, ORDER_STAGES.findIndex((item) => item.id === stage));
   const currentStage = ORDER_STAGES[currentIndex];
+  const nextStage = ORDER_STAGES[currentIndex + 1];
 
   return (
     <View style={styles.container}>
       <View style={styles.heading}>
         <Text style={styles.title}>متابعة الطلب</Text>
         <View style={styles.stageSummary}>
-          <Text style={styles.currentStage}>{currentStage.label}</Text>
-          <Text style={styles.stageCount}>{`${arabicNumbers[currentIndex]} / ٤`}</Text>
+          <View style={styles.stageCopy}>
+            <Text style={styles.stageHint}>الحالة الحالية</Text>
+            <Text style={styles.currentStage}>{currentStage.label}</Text>
+          </View>
+          <Text style={styles.stageCount}>
+            {`المرحلة ${arabicNumbers[currentIndex]} من ٤`}
+          </Text>
         </View>
       </View>
 
@@ -56,6 +62,15 @@ export function OrderProgress({ stage }: { stage: OrderStage }) {
           </Fragment>
         ))}
       </View>
+
+      <View style={styles.nextStep}>
+        <Text style={styles.nextStepLabel}>
+          {nextStage ? 'الخطوة التالية' : 'حالة الطلب'}
+        </Text>
+        <Text style={styles.nextStepValue}>
+          {nextStage ? nextStage.label : 'اكتمل الطلب، ما في خطوات تانية'}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -70,10 +85,8 @@ const styles = StyleSheet.create({
     padding: 13,
   },
   heading: {
-    alignItems: 'center',
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    gap: 8,
+    alignItems: 'stretch',
+    gap: 9,
   },
   title: {
     color: '#152D27',
@@ -85,19 +98,37 @@ const styles = StyleSheet.create({
   stageSummary: {
     alignItems: 'center',
     backgroundColor: '#EAF5F0',
-    borderRadius: 10,
+    borderRadius: 12,
     flexDirection: 'row-reverse',
-    gap: 7,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  stageCopy: {
+    alignItems: 'flex-end',
+    flexShrink: 1,
+    gap: 2,
+  },
+  stageHint: {
+    color: '#71817A',
+    fontSize: 9,
+    writingDirection: 'rtl',
   },
   currentStage: {
     color: '#125347',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
     writingDirection: 'rtl',
   },
-  stageCount: { color: '#71817A', fontSize: 9, fontWeight: '800' },
+  stageCount: {
+    color: '#71817A',
+    flexShrink: 0,
+    fontSize: 9,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
   track: {
     alignItems: 'flex-start',
     flexDirection: 'row-reverse',
@@ -148,5 +179,32 @@ const styles = StyleSheet.create({
   },
   completedLine: {
     backgroundColor: '#8AB7A7',
+  },
+  nextStep: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E1EAE5',
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    gap: 9,
+    justifyContent: 'space-between',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  nextStepLabel: {
+    color: '#71817A',
+    flexShrink: 0,
+    fontSize: 10,
+    fontWeight: '700',
+    writingDirection: 'rtl',
+  },
+  nextStepValue: {
+    color: '#152D27',
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

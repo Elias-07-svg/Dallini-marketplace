@@ -5,10 +5,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  View,
 } from 'react-native';
 
 import {
@@ -175,6 +177,8 @@ export default function ResetPasswordScreen() {
   const [status, setStatus] = useState<ScreenStatus>('checking');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [recoveryDiagnostic, setRecoveryDiagnostic] = useState<RecoveryDiagnostic | null>(null);
@@ -320,37 +324,63 @@ export default function ResetPasswordScreen() {
             <Text style={styles.formTitle}>اختار كلمة مرور جديدة</Text>
             <Text style={styles.formHint}>استخدم ٦ أحرف على الأقل.</Text>
             <Text style={styles.label}>كلمة المرور الجديدة</Text>
-            <TextInput
-              accessibilityLabel="كلمة المرور الجديدة"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSaving}
-              onChangeText={setNewPassword}
-              onSubmitEditing={() => void saveNewPassword()}
-              placeholder="٦ أحرف على الأقل"
-              placeholderTextColor="#98A59F"
-              returnKeyType="next"
-              secureTextEntry
-              style={styles.input}
-              textAlign="left"
-              value={newPassword}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                accessibilityLabel="كلمة المرور الجديدة"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSaving}
+                onChangeText={setNewPassword}
+                onSubmitEditing={() => void saveNewPassword()}
+                placeholder="٦ أحرف على الأقل"
+                placeholderTextColor="#98A59F"
+                returnKeyType="next"
+                secureTextEntry={!showNewPassword}
+                style={[styles.input, styles.passwordInput]}
+                textAlign="left"
+                value={newPassword}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showNewPassword ? 'إخفاء كلمة المرور الجديدة' : 'إظهار كلمة المرور الجديدة'}
+                accessibilityState={{ selected: showNewPassword, disabled: isSaving }}
+                disabled={isSaving}
+                onPress={() => setShowNewPassword((current) => !current)}
+                style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}>
+                <Text style={styles.passwordToggleText}>
+                  {showNewPassword ? 'إخفاء' : 'إظهار'}
+                </Text>
+              </Pressable>
+            </View>
             <Text style={styles.label}>تأكيد كلمة المرور</Text>
-            <TextInput
-              accessibilityLabel="تأكيد كلمة المرور"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSaving}
-              onChangeText={setConfirmPassword}
-              onSubmitEditing={() => void saveNewPassword()}
-              placeholder="أعد كتابة كلمة المرور"
-              placeholderTextColor="#98A59F"
-              returnKeyType="done"
-              secureTextEntry
-              style={styles.input}
-              textAlign="left"
-              value={confirmPassword}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                accessibilityLabel="تأكيد كلمة المرور"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSaving}
+                onChangeText={setConfirmPassword}
+                onSubmitEditing={() => void saveNewPassword()}
+                placeholder="أعد كتابة كلمة المرور"
+                placeholderTextColor="#98A59F"
+                returnKeyType="done"
+                secureTextEntry={!showConfirmPassword}
+                style={[styles.input, styles.passwordInput]}
+                textAlign="left"
+                value={confirmPassword}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showConfirmPassword ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد كلمة المرور'}
+                accessibilityState={{ selected: showConfirmPassword, disabled: isSaving }}
+                disabled={isSaving}
+                onPress={() => setShowConfirmPassword((current) => !current)}
+                style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}>
+                <Text style={styles.passwordToggleText}>
+                  {showConfirmPassword ? 'إخفاء' : 'إظهار'}
+                </Text>
+              </Pressable>
+            </View>
             {feedback ? <Text style={styles.errorText}>{feedback.text}</Text> : null}
             <PrimaryButton
               disabled={isSaving}
@@ -426,6 +456,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     writingDirection: 'ltr',
   },
+  passwordRow: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: DALLNI_COLORS.border,
+    borderRadius: 13,
+    borderWidth: 1,
+    flexDirection: 'row-reverse',
+    paddingHorizontal: 6,
+  },
+  passwordInput: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    flex: 1,
+    minHeight: 48,
+  },
+  passwordToggle: {
+    alignItems: 'center',
+    backgroundColor: '#F2F6F3',
+    borderRadius: 9,
+    justifyContent: 'center',
+    minHeight: 36,
+    minWidth: 54,
+    paddingHorizontal: 7,
+  },
+  passwordToggleText: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 10,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  pressed: { opacity: 0.8 },
   errorText: {
     color: '#A83232',
     fontSize: 11,

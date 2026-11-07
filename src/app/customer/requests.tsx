@@ -167,7 +167,10 @@ function DemoCustomerRequestsScreen() {
                             value={offer.shopLocation || 'الموقع غير محدد'}
                           />
                           <OfferLine label="المنتج" value={offer.itemName} />
-                          <OfferLine label="السعر" value={offer.price + ' $'} />
+                          <View style={styles.offerPriceLine}>
+                            <Text style={styles.offerPriceValue}>{offer.price} $</Text>
+                            <Text style={styles.offerPriceLabel}>السعر</Text>
+                          </View>
                           <OfferLine label="التوصيل" value={offer.deliveryNote} />
                         </Pressable>
                       );
@@ -405,6 +408,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     gap: 10,
     justifyContent: 'space-between',
+  },
+  offerPriceLine: {
+    alignItems: 'center',
+    backgroundColor: '#F3F8F5',
+    borderRadius: 10,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  offerPriceLabel: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 11,
+    fontWeight: '800',
+    writingDirection: 'rtl',
+  },
+  offerPriceValue: {
+    color: DALLNI_COLORS.greenDark,
+    fontSize: 15,
+    fontWeight: '900',
+    writingDirection: 'ltr',
   },
   offerLabel: {
     color: DALLNI_COLORS.muted,
