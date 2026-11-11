@@ -6,14 +6,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DALLNI_COLORS, FlowHeader, SurfaceCard } from '@/components/dallni/flow-ui';
 import { ProductCard } from '@/components/dallni/product-card';
 import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProducts, loadPublicShop, type CatalogProduct, type PublicShop } from '@/lib/product-catalog-supabase';
+import { loadPublicShopRatingSummaries, type PublicShopRatingSummary } from '@/lib/public-shop-ratings';
 
 export default function PublicShopProfileScreen() {
   const { refreshFavorites } = useCustomerFavorites();
   const { shopId } = useLocalSearchParams<{ shopId: string }>();
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [ratingSummary, setRatingSummary] = useState<PublicShopRatingSummary | null>(null);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingError, setRatingError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -22,20 +27,37 @@ export default function PublicShopProfileScreen() {
     void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setHasError(false);
+    setRatingSummary(null);
+    setRatingLoading(Boolean(shopId));
+    setRatingError(false);
     if (!shopId) {
       setShop(null);
       setProducts([]);
       setIsLoading(false);
+      setRatingLoading(false);
       return () => { isCurrent = false; };
     }
 
     void Promise.all([
       loadPublicShop(shopId),
       loadCatalogProducts({ shopId }),
-    ]).then(([publicShop, activeProducts]) => {
+    ]).then(async ([publicShop, activeProducts]) => {
       if (!isCurrent) return;
       setShop(publicShop);
       setProducts(activeProducts);
+      if (!publicShop) {
+        setRatingLoading(false);
+        return;
+      }
+
+      try {
+        const summaries = await loadPublicShopRatingSummaries([publicShop.id]);
+        if (isCurrent) setRatingSummary(summaries[publicShop.id] ?? null);
+      } catch {
+        if (isCurrent) setRatingError(true);
+      } finally {
+        if (isCurrent) setRatingLoading(false);
+      }
     }).catch(() => {
       if (isCurrent) setHasError(true);
     }).finally(() => {
@@ -66,6 +88,7 @@ export default function PublicShopProfileScreen() {
                 <FavoriteButton itemId={shop.id} itemType="shop" size="large" />
               </View>
               <Text style={styles.detail}>الموقع ومناطق الخدمة: {areas.length ? areas.join('، ') : 'غير محددة'}</Text>
+              <ShopRatingSummary summary={ratingSummary} isLoading={ratingLoading} hasError={ratingError} />
               {shop.product_categories.length ? <Text style={styles.detail}>الفئات: {shop.product_categories.join('، ')}</Text> : null}
               <Text style={styles.privacyNote}>معلومات التواصل بتضل خاصة، وبتظهر فقط بعد اختيار عرض على طلب.</Text>
             </SurfaceCard>

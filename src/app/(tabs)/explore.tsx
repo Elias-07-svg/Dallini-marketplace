@@ -16,6 +16,7 @@ import { DALLNI_COLORS, PrimaryButton, SurfaceCard } from '@/components/dallni/f
 import { ProductCard } from '@/components/dallni/product-card';
 import { ShopCard } from '@/components/dallni/shop-card';
 import { useCustomerFavorites } from '@/context/customer-favorites';
+import { loadPublicShopRatingSummaries, type PublicShopRatingSummaries } from '@/lib/public-shop-ratings';
 import {
   REQUEST_CATEGORIES,
   REQUEST_CATEGORY_ICONS,
@@ -57,6 +58,8 @@ export default function ExploreScreen() {
   });
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [shops, setShops] = useState<PublicShop[]>([]);
+  const [shopRatingSummaries, setShopRatingSummaries] = useState<PublicShopRatingSummaries>({});
+  const [shopRatingError, setShopRatingError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filterError, setFilterError] = useState('');
@@ -66,23 +69,35 @@ export default function ExploreScreen() {
     void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setError(false);
+    setShopRatingSummaries({});
+    setShopRatingError(false);
 
-    const request = view === 'products'
-      ? loadCatalogProducts({
+    const request = async () => {
+      if (view === 'products') {
+        const result = await loadCatalogProducts({
           search: filters.search,
           category: filters.category,
           area: filters.area,
           currencyCode: filters.currency || null,
           minPrice: filters.currency ? parseOptionalPrice(filters.ranges[filters.currency].min) : null,
           maxPrice: filters.currency ? parseOptionalPrice(filters.ranges[filters.currency].max) : null,
-        })
-      : loadPublicShops({ search: filters.search, category: filters.category, area: filters.area });
+        });
+        if (isCurrent) setProducts(result);
+        return;
+      }
 
-    void request.then((result) => {
+      const result = await loadPublicShops({ search: filters.search, category: filters.category, area: filters.area });
       if (!isCurrent) return;
-      if (view === 'products') setProducts(result as CatalogProduct[]);
-      else setShops(result as PublicShop[]);
-    }).catch(() => {
+      setShops(result);
+      try {
+        const summaries = await loadPublicShopRatingSummaries(result.map((shop) => shop.id));
+        if (isCurrent) setShopRatingSummaries(summaries);
+      } catch {
+        if (isCurrent) setShopRatingError(true);
+      }
+    };
+
+    void request().catch(() => {
       if (isCurrent) setError(true);
     }).finally(() => {
       if (isCurrent) setIsLoading(false);
@@ -253,7 +268,13 @@ export default function ExploreScreen() {
           )) : <EmptyState text="ما لقينا منتجات بهالفلاتر. جرّب توسّع البحث." />
         ) : (
           shops.length ? shops.map((shop) => (
-            <ShopCard key={shop.id} shop={shop} onPress={() => router.push({ pathname: '/shop/[shopId]', params: { shopId: shop.id } } as Href)} />
+            <ShopCard
+              key={shop.id}
+              shop={shop}
+              ratingSummary={shopRatingSummaries[shop.id] ?? null}
+              ratingError={shopRatingError}
+              onPress={() => router.push({ pathname: '/shop/[shopId]', params: { shopId: shop.id } } as Href)}
+            />
           )) : <EmptyState text="ما لقينا محلات بهالبحث." />
         )}
 

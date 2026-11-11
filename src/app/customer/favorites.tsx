@@ -10,6 +10,7 @@ import { ShopCard } from '@/components/dallni/shop-card';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import { loadCatalogProduct, loadPublicShop, type CatalogProduct, type PublicShop } from '@/lib/product-catalog-supabase';
+import { loadPublicShopRatingSummaries, type PublicShopRatingSummaries } from '@/lib/public-shop-ratings';
 
 async function loadInBatches<Result>(items: string[], loadItem: (id: string) => Promise<Result>, batchSize = 8) {
   const result: Result[] = [];
@@ -29,6 +30,8 @@ export default function CustomerFavoritesScreen() {
   } = useCustomerFavorites();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [shops, setShops] = useState<PublicShop[]>([]);
+  const [shopRatingSummaries, setShopRatingSummaries] = useState<PublicShopRatingSummaries>({});
+  const [shopRatingError, setShopRatingError] = useState(false);
   const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
   const [savedShopIds, setSavedShopIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,11 +44,22 @@ export default function CustomerFavoritesScreen() {
       loadInBatches(saved.productIds, loadCatalogProduct),
       loadInBatches(saved.shopIds, loadPublicShop),
     ]);
+    let ratingSummaries: PublicShopRatingSummaries = {};
+    let hasRatingError = false;
+    try {
+      ratingSummaries = await loadPublicShopRatingSummaries(
+        shopRows.flatMap((shop) => shop ? [shop.id] : []),
+      );
+    } catch {
+      hasRatingError = true;
+    }
 
     return {
       saved,
       products: productRows.filter((product): product is CatalogProduct => product !== null),
       shops: shopRows.filter((shop): shop is PublicShop => shop !== null),
+      shopRatingSummaries: ratingSummaries,
+      shopRatingError: hasRatingError,
     };
   }, [refreshFavorites, user]);
 
@@ -56,6 +70,8 @@ export default function CustomerFavoritesScreen() {
     setSavedShopIds(result.saved.shopIds);
     setProducts(result.products);
     setShops(result.shops);
+    setShopRatingSummaries(result.shopRatingSummaries);
+    setShopRatingError(result.shopRatingError);
   }, [loadFavorites]);
 
   useFocusEffect(useCallback(() => {
@@ -152,6 +168,8 @@ export default function CustomerFavoritesScreen() {
                   <ShopCard
                     key={shop.id}
                     shop={shop}
+                    ratingSummary={shopRatingSummaries[shop.id] ?? null}
+                    ratingError={shopRatingError}
                     onPress={() => router.push({ pathname: '/shop/[shopId]', params: { shopId: shop.id } } as Href)}
                   />
                 ))}

@@ -2,9 +2,21 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FavoriteButton } from '@/components/dallni/favorite-button';
 import { DALLNI_COLORS, SurfaceCard } from '@/components/dallni/flow-ui';
+import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import type { PublicShop } from '@/lib/product-catalog-supabase';
+import type { PublicShopRatingSummary } from '@/lib/public-shop-ratings';
 
-export function ShopCard({ shop, onPress }: { shop: PublicShop; onPress: () => void }) {
+export function ShopCard({
+  shop,
+  onPress,
+  ratingSummary = null,
+  ratingError = false,
+}: {
+  shop: PublicShop;
+  onPress: () => void;
+  ratingSummary?: PublicShopRatingSummary | null;
+  ratingError?: boolean;
+}) {
   const areas = [...new Set([shop.location, ...shop.service_areas].map((item) => item.trim()).filter(Boolean))];
 
   return (
@@ -28,6 +40,7 @@ export function ShopCard({ shop, onPress }: { shop: PublicShop; onPress: () => v
         {shop.product_categories.length > 0 ? (
           <Text numberOfLines={2} style={styles.categories}>{shop.product_categories.join('، ')}</Text>
         ) : null}
+        <ShopRatingSummary summary={ratingSummary} hasError={ratingError} compact />
         </Pressable>
         <FavoriteButton itemId={shop.id} itemType="shop" />
       </View>

@@ -5,8 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DALLNI_COLORS, FlowHeader, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
 import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProduct, type CatalogProduct } from '@/lib/product-catalog-supabase';
+import { loadPublicShopRatingSummaries, type PublicShopRatingSummary } from '@/lib/public-shop-ratings';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
@@ -16,6 +18,9 @@ export default function ProductDetailScreen() {
   const { refreshFavorites } = useCustomerFavorites();
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const [product, setProduct] = useState<CatalogProduct | null>(null);
+  const [ratingSummary, setRatingSummary] = useState<PublicShopRatingSummary | null>(null);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingError, setRatingError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -24,6 +29,9 @@ export default function ProductDetailScreen() {
     void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setHasError(false);
+    setRatingSummary(null);
+    setRatingLoading(false);
+    setRatingError(false);
 
     if (!productId) {
       setProduct(null);
@@ -31,8 +39,20 @@ export default function ProductDetailScreen() {
       return () => { isCurrent = false; };
     }
 
-    void loadCatalogProduct(productId).then((visibleProduct) => {
-      if (isCurrent) setProduct(visibleProduct);
+    void loadCatalogProduct(productId).then(async (visibleProduct) => {
+      if (!isCurrent) return;
+      setProduct(visibleProduct);
+      if (!visibleProduct) return;
+
+      setRatingLoading(true);
+      try {
+        const summaries = await loadPublicShopRatingSummaries([visibleProduct.shop_id]);
+        if (isCurrent) setRatingSummary(summaries[visibleProduct.shop_id] ?? null);
+      } catch {
+        if (isCurrent) setRatingError(true);
+      } finally {
+        if (isCurrent) setRatingLoading(false);
+      }
     }).catch(() => {
       if (isCurrent) setHasError(true);
     }).finally(() => {
@@ -129,6 +149,7 @@ export default function ProductDetailScreen() {
                   <Text style={styles.shopHint}>المنتج من محل</Text>
                   <Text style={styles.shopName}>{product.shop_name}</Text>
                   {product.shop_location ? <Text style={styles.shopLocation}>{product.shop_location}</Text> : null}
+                  <ShopRatingSummary summary={ratingSummary} isLoading={ratingLoading} hasError={ratingError} compact />
                 </View>
               </SurfaceCard>
             </Pressable>
