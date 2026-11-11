@@ -60,6 +60,21 @@ export default function HomeScreen() {
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="تصفّح المنتجات والمحلات"
+          onPress={() => router.push('/explore')}
+          style={({ pressed }) => [styles.ownerEntry, styles.discoveryEntry, pressed && styles.ownerEntryPressed]}>
+          <View style={styles.ownerEntryCopy}>
+            <Text style={styles.ownerEntryTitle}>اكتشف المنتجات والمحلات</Text>
+            <Text style={styles.ownerEntrySubtitle}>قارن الأسعار وشوف المحلات ومناطق خدمتها.</Text>
+          </View>
+          <View style={styles.ownerEntryAction}>
+            <Text style={styles.ownerEntryActionText}>تصفّح</Text>
+            <Text style={styles.ownerEntryArrow}>←</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
           accessibilityState={{ disabled: isAuthLoading }}
           disabled={isAuthLoading}
           onPress={() => router.push('/auth' as Href)}
@@ -299,6 +314,11 @@ const styles = StyleSheet.create({
   customerRequestsEntry: {
     backgroundColor: '#F0F6F2',
     marginTop: 10,
+  },
+  discoveryEntry: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D9EAE1',
+    marginTop: 12,
   },
   authEntry: {
     backgroundColor: '#FFFFFF',

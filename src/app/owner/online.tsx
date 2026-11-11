@@ -282,6 +282,12 @@ export default function ConnectedShopInboxScreen() {
               <View style={styles.shopActions}>
                 <Pressable
                   accessibilityRole="button"
+                  onPress={() => router.push('/owner/products' as Href)}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.secondaryButtonText}>كتالوج المنتجات</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
                   onPress={() => router.push('/owner/online-profile' as Href)}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
                   <Text style={styles.secondaryButtonText}>تعديل ملف المحل</Text>
