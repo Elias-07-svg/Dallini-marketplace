@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,7 @@ import {
 } from '@/components/dallni/flow-ui';
 import { ORDER_STAGES, type OrderStage } from '@/context/demo-session';
 import { useSupabaseAuth } from '@/context/supabase-auth';
+import { subscribeToShopRequestOrder } from '@/lib/marketplace-realtime';
 import {
   advanceOwnerOrderStage,
   createOwnerOffer,
@@ -77,7 +78,7 @@ export default function ConnectedShopRequestScreen() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [orderErrorCode, setOrderErrorCode] = useState<string | null>(null);
   const [offerSaved, setOfferSaved] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const requestReloadRef = useRef<(() => void) | null>(null);
 
   const loadRequestData = useCallback(async () => {
     if (!user || !id) {
@@ -125,11 +126,14 @@ export default function ConnectedShopRequestScreen() {
     }
   }, [id, user]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (isAuthLoading) return;
 
     let isCurrent = true;
-    void loadRequestData().then((result) => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const reload = async () => {
+      const result = await loadRequestData();
       if (!isCurrent) return;
       setShop(result.shop);
       setRequest(result.request);
@@ -138,12 +142,40 @@ export default function ConnectedShopRequestScreen() {
       setCustomerWhatsAppNumber(result.customerWhatsAppNumber);
       setErrorCode(result.errorCode);
       setIsLoading(false);
-    });
+    };
+
+    const scheduleReload = () => {
+      if (!isCurrent) return;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void reload();
+      }, 120);
+    };
+
+    const unsubscribeOrder = user && id
+      ? subscribeToShopRequestOrder(id, scheduleReload)
+      : () => {};
+    const reloadNow = () => void reload();
+    requestReloadRef.current = reloadNow;
+    void reload();
 
     return () => {
       isCurrent = false;
+      if (requestReloadRef.current === reloadNow) requestReloadRef.current = null;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unsubscribeOrder();
     };
-  }, [isAuthLoading, loadRequestData, refreshKey]);
+  }, [id, isAuthLoading, loadRequestData, user]));
+
+  function refreshRequest(showLoading = false) {
+    const reload = requestReloadRef.current;
+    if (!reload) return;
+
+    setErrorCode(null);
+    if (showLoading) setIsLoading(true);
+    reload();
+  }
 
   const normalizedPrice = normalizePrice(price, currencyCode);
   const priceAmount = Number(normalizedPrice);
@@ -258,11 +290,7 @@ export default function ConnectedShopRequestScreen() {
             <Text style={styles.stateText}>تأكد من اتصال الإنترنت وحاول تحديث الطلب.</Text>
             <PrimaryButton
               label="إعادة المحاولة"
-              onPress={() => {
-                setIsLoading(true);
-                setErrorCode(null);
-                setRefreshKey((value) => value + 1);
-              }}
+              onPress={() => refreshRequest(true)}
             />
           </SurfaceCard>
         ) : !request ? (
@@ -327,10 +355,7 @@ export default function ConnectedShopRequestScreen() {
                 )}
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => {
-                    setIsLoading(true);
-                    setRefreshKey((value) => value + 1);
-                  }}
+                  onPress={() => refreshRequest(true)}
                   style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
                   <Text style={styles.profileButtonText}>تحديث بيانات التواصل</Text>
                 </Pressable>

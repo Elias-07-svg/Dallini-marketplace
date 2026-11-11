@@ -1,5 +1,5 @@
-import { router, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,6 +22,10 @@ import {
 import { OrderProgress } from '@/components/dallni/order-progress';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import {
+  subscribeToShopInboxRequests,
+  subscribeToShopOrders,
+} from '@/lib/marketplace-realtime';
+import {
   loadOwnerInboxRequests,
   loadOwnerOrders,
   loadOwnerRatings,
@@ -42,20 +46,23 @@ export default function ConnectedShopInboxScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const workspaceReloadRef = useRef<(() => void) | null>(null);
   const openRequestCount = requests.filter((request) => request.status === 'open').length;
   const activeOrderCount = orders.filter((order) => order.stage !== 'completed').length;
   const averageRating = ratings.length
     ? (ratings.reduce((total, rating) => total + rating.stars, 0) / ratings.length).toFixed(1)
     : '—';
 
-  const loadWorkspace = useCallback(async () => {
+  const loadWorkspace = useCallback(async (
+    onShopResolved?: (shop: OwnerShopProfile | null) => void,
+  ) => {
     if (!user) {
       return { shop: null, requests: [], orders: [], ratings: [], errorCode: null };
     }
 
     try {
       const ownerShop = await loadOwnerShop(user.id);
+      onShopResolved?.(ownerShop);
       const isActiveShop = ownerShop?.status === 'active';
       const [visibleRequests, ownOrders, shopRatings] = await Promise.all([
         isActiveShop ? loadOwnerInboxRequests() : Promise.resolve([] as ShopInboxRequest[]),
@@ -78,11 +85,37 @@ export default function ConnectedShopInboxScreen() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (isAuthLoading) return;
+  useFocusEffect(useCallback(() => {
+    if (isAuthLoading || !user) return;
 
     let isCurrent = true;
-    void loadWorkspace().then((result) => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let subscribedShopId: string | null = null;
+    let unsubscribeOrders = () => {};
+
+    const scheduleReload = () => {
+      if (!isCurrent) return;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void reload();
+      }, 120);
+    };
+
+    const syncOrderSubscription = (ownerShop: OwnerShopProfile | null) => {
+      if (!isCurrent) return;
+      const nextShopId = ownerShop?.status === 'active' ? ownerShop.id : null;
+      if (nextShopId === subscribedShopId) return;
+
+      unsubscribeOrders();
+      subscribedShopId = nextShopId;
+      unsubscribeOrders = nextShopId
+        ? subscribeToShopOrders(nextShopId, scheduleReload)
+        : () => {};
+    };
+
+    const reload = async () => {
+      const result = await loadWorkspace(syncOrderSubscription);
       if (!isCurrent) return;
       setShop(result.shop);
       setRequests(result.requests);
@@ -91,12 +124,31 @@ export default function ConnectedShopInboxScreen() {
       setErrorCode(result.errorCode);
       setIsLoading(false);
       setIsRefreshing(false);
-    });
+    };
+
+    const unsubscribeRequests = subscribeToShopInboxRequests(scheduleReload);
+    const reloadNow = () => void reload();
+    workspaceReloadRef.current = reloadNow;
+    void reload();
 
     return () => {
       isCurrent = false;
+      if (workspaceReloadRef.current === reloadNow) workspaceReloadRef.current = null;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unsubscribeRequests();
+      unsubscribeOrders();
     };
-  }, [isAuthLoading, loadWorkspace, refreshKey]);
+  }, [isAuthLoading, loadWorkspace, user]));
+
+  function refreshWorkspace() {
+    if (isRefreshing) return;
+    const reload = workspaceReloadRef.current;
+    if (!reload) return;
+
+    setErrorCode(null);
+    setIsRefreshing(true);
+    reload();
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -112,12 +164,7 @@ export default function ConnectedShopInboxScreen() {
         refreshControl={(
           <RefreshControl
             colors={[DALLNI_COLORS.green]}
-            onRefresh={() => {
-              if (isRefreshing) return;
-              setErrorCode(null);
-              setIsRefreshing(true);
-              setRefreshKey((value) => value + 1);
-            }}
+            onRefresh={refreshWorkspace}
             refreshing={isRefreshing}
             tintColor={DALLNI_COLORS.green}
           />
@@ -156,11 +203,7 @@ export default function ConnectedShopInboxScreen() {
             </Text>
             <PrimaryButton
               label="إعادة المحاولة"
-              onPress={() => {
-                setErrorCode(null);
-                setIsRefreshing(true);
-                setRefreshKey((value) => value + 1);
-              }}
+              onPress={refreshWorkspace}
             />
           </SurfaceCard>
         ) : !shop ? (
@@ -212,11 +255,7 @@ export default function ConnectedShopInboxScreen() {
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => {
-                    setErrorCode(null);
-                    setIsRefreshing(true);
-                    setRefreshKey((value) => value + 1);
-                  }}
+                  onPress={refreshWorkspace}
                   style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
                   <Text style={styles.secondaryButtonText}>تحديث الطلبات والتقدّم</Text>
                 </Pressable>

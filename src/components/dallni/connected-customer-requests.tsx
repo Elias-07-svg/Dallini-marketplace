@@ -36,6 +36,10 @@ import {
   type CustomerMarketplaceEntry,
 } from '@/lib/customer-marketplace-supabase';
 import {
+  subscribeToCustomerMarketplace,
+  subscribeToCustomerRequestOffers,
+} from '@/lib/marketplace-realtime';
+import {
   createWhatsAppClickToChatUrl,
   normalizeInternationalWhatsAppNumber,
 } from '@/utils/whatsapp';
@@ -74,19 +78,49 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
 
   useFocusEffect(useCallback(() => {
     let isCurrent = true;
-    void loadData().then((result) => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let subscribedRequestIds = '';
+    let unsubscribeOffers = () => {};
+
+    const reload = async () => {
+      const result = await loadData();
       if (!isCurrent) return;
       setEntries(result.entries);
       setErrorCode(result.errorCode);
       if (!result.errorCode) setSelectionRefreshErrorCodes({});
       setIsLoading(false);
       setIsRefreshing(false);
-    });
+
+      if (!result.errorCode) {
+        const requestIds = result.entries.map((entry) => entry.request.id).sort();
+        const requestIdsKey = requestIds.join(',');
+        if (requestIdsKey !== subscribedRequestIds) {
+          unsubscribeOffers();
+          subscribedRequestIds = requestIdsKey;
+          unsubscribeOffers = subscribeToCustomerRequestOffers(requestIds, scheduleReload);
+        }
+      }
+    };
+
+    const scheduleReload = () => {
+      if (!isCurrent) return;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void reload();
+      }, 120);
+    };
+
+    const unsubscribeMarketplace = subscribeToCustomerMarketplace(customerId, scheduleReload);
+    void reload();
 
     return () => {
       isCurrent = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unsubscribeMarketplace();
+      unsubscribeOffers();
     };
-  }, [loadData]));
+  }, [customerId, loadData]));
 
   async function refresh() {
     setErrorCode(null);
