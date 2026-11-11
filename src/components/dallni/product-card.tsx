@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FavoriteButton } from '@/components/dallni/favorite-button';
 import { DALLNI_COLORS, SurfaceCard } from '@/components/dallni/flow-ui';
 import type { CatalogProduct } from '@/lib/product-catalog-supabase';
 
@@ -49,22 +50,25 @@ export function ProductCard({
           </View>
         )}
       </Pressable>
-      {onShopPress ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`فتح ملف محل ${product.shop_name}`}
-          onPress={onShopPress}
-          style={({ pressed }) => [styles.shopLink, pressed && styles.shopLinkPressed]}>
-          <Text style={styles.shopLinkArrow}>←</Text>
-          <Text style={styles.shopName}>{product.shop_name}</Text>
-          <Text style={styles.shopLinkHint}>من المحل</Text>
-        </Pressable>
-      ) : (
-        <View style={styles.shopLinkStatic}>
-          <Text style={styles.shopName}>{product.shop_name}</Text>
-          <Text style={styles.shopLinkHint}>من المحل</Text>
-        </View>
-      )}
+      <View style={styles.actionRow}>
+        {onShopPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`فتح ملف محل ${product.shop_name}`}
+            onPress={onShopPress}
+            style={({ pressed }) => [styles.shopLink, pressed && styles.shopLinkPressed]}>
+            <Text style={styles.shopLinkArrow}>←</Text>
+            <Text style={styles.shopName}>{product.shop_name}</Text>
+            <Text style={styles.shopLinkHint}>من المحل</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.shopLinkStatic}>
+            <Text style={styles.shopName}>{product.shop_name}</Text>
+            <Text style={styles.shopLinkHint}>من المحل</Text>
+          </View>
+        )}
+        <FavoriteButton itemId={product.id} itemType="product" />
+      </View>
     </SurfaceCard>
   );
 
@@ -74,6 +78,7 @@ export function ProductCard({
 const styles = StyleSheet.create({
   card: { gap: 9, padding: 11 },
   productContent: { alignItems: 'center', flexDirection: 'row-reverse', gap: 12 },
+  actionRow: { alignItems: 'center', flexDirection: 'row-reverse', gap: 8 },
   copy: { alignItems: 'flex-end', flex: 1, gap: 5 },
   topLine: { alignItems: 'center', flexDirection: 'row-reverse', gap: 6, width: '100%' },
   name: { color: DALLNI_COLORS.ink, flex: 1, fontSize: 14, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
@@ -82,8 +87,8 @@ const styles = StyleSheet.create({
   metaLine: { alignItems: 'center', flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6 },
   category: { backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 8, color: DALLNI_COLORS.greenDark, fontSize: 9, fontWeight: '800', overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 4, writingDirection: 'rtl' },
   shopName: { color: DALLNI_COLORS.greenDark, flexShrink: 1, fontSize: 10, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
-  shopLink: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: '#F7FAF8', borderRadius: 9, flexDirection: 'row-reverse', gap: 6, minHeight: 34, paddingHorizontal: 9 },
-  shopLinkStatic: { alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row-reverse', gap: 6, minHeight: 28, paddingHorizontal: 4 },
+  shopLink: { alignItems: 'center', backgroundColor: '#F7FAF8', borderRadius: 9, flex: 1, flexDirection: 'row-reverse', gap: 6, minHeight: 38, paddingHorizontal: 9 },
+  shopLinkStatic: { alignItems: 'center', flex: 1, flexDirection: 'row-reverse', gap: 6, minHeight: 28, paddingHorizontal: 4 },
   shopLinkHint: { color: DALLNI_COLORS.muted, fontSize: 9, writingDirection: 'rtl' },
   shopLinkArrow: { color: DALLNI_COLORS.green, fontSize: 14 },
   area: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 15, textAlign: 'right', writingDirection: 'rtl' },

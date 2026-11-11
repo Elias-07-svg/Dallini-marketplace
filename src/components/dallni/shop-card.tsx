@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FavoriteButton } from '@/components/dallni/favorite-button';
 import { DALLNI_COLORS, SurfaceCard } from '@/components/dallni/flow-ui';
 import type { PublicShop } from '@/lib/product-catalog-supabase';
 
@@ -7,12 +8,13 @@ export function ShopCard({ shop, onPress }: { shop: PublicShop; onPress: () => v
   const areas = [...new Set([shop.location, ...shop.service_areas].map((item) => item.trim()).filter(Boolean))];
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`فتح ملف ${shop.shop_name}`}
-      onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}>
-      <SurfaceCard style={styles.card}>
+    <SurfaceCard style={styles.card}>
+      <View style={styles.cardRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`فتح ملف ${shop.shop_name}`}
+          onPress={onPress}
+          style={({ pressed }) => [styles.shopDetails, pressed && styles.pressed]}>
         <View style={styles.topLine}>
           <Text style={styles.arrow}>←</Text>
           <View style={styles.copy}>
@@ -26,13 +28,17 @@ export function ShopCard({ shop, onPress }: { shop: PublicShop; onPress: () => v
         {shop.product_categories.length > 0 ? (
           <Text numberOfLines={2} style={styles.categories}>{shop.product_categories.join('، ')}</Text>
         ) : null}
-      </SurfaceCard>
-    </Pressable>
+        </Pressable>
+        <FavoriteButton itemId={shop.id} itemType="shop" />
+      </View>
+    </SurfaceCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 9, padding: 14 },
+  card: { padding: 12 },
+  cardRow: { alignItems: 'center', flexDirection: 'row-reverse', gap: 9 },
+  shopDetails: { flex: 1, gap: 9, padding: 2 },
   topLine: { alignItems: 'center', flexDirection: 'row-reverse', gap: 10 },
   arrow: { color: '#9AA8A0', fontSize: 18 },
   copy: { alignItems: 'flex-end', flex: 1, gap: 3 },

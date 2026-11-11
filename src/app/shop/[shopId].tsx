@@ -1,13 +1,16 @@
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DALLNI_COLORS, FlowHeader, SurfaceCard } from '@/components/dallni/flow-ui';
 import { ProductCard } from '@/components/dallni/product-card';
+import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProducts, loadPublicShop, type CatalogProduct, type PublicShop } from '@/lib/product-catalog-supabase';
 
 export default function PublicShopProfileScreen() {
+  const { refreshFavorites } = useCustomerFavorites();
   const { shopId } = useLocalSearchParams<{ shopId: string }>();
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -16,6 +19,7 @@ export default function PublicShopProfileScreen() {
 
   useFocusEffect(useCallback(() => {
     let isCurrent = true;
+    void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setHasError(false);
     if (!shopId) {
@@ -39,7 +43,7 @@ export default function PublicShopProfileScreen() {
     });
 
     return () => { isCurrent = false; };
-  }, [shopId]));
+  }, [refreshFavorites, shopId]));
 
   const areas = shop ? [...new Set([shop.location, ...shop.service_areas].map((area) => area.trim()).filter(Boolean))] : [];
 
@@ -57,7 +61,10 @@ export default function PublicShopProfileScreen() {
         ) : (
           <>
             <SurfaceCard style={styles.profileCard}>
-              <Text style={styles.shopName}>{shop.shop_name}</Text>
+              <View style={styles.profileHeading}>
+                <Text style={styles.shopName}>{shop.shop_name}</Text>
+                <FavoriteButton itemId={shop.id} itemType="shop" size="large" />
+              </View>
               <Text style={styles.detail}>الموقع ومناطق الخدمة: {areas.length ? areas.join('، ') : 'غير محددة'}</Text>
               {shop.product_categories.length ? <Text style={styles.detail}>الفئات: {shop.product_categories.join('، ')}</Text> : null}
               <Text style={styles.privacyNote}>معلومات التواصل بتضل خاصة، وبتظهر فقط بعد اختيار عرض على طلب.</Text>
@@ -85,6 +92,7 @@ const styles = StyleSheet.create({
   stateCard: { alignItems: 'flex-end', gap: 8, padding: 15 },
   stateText: { color: DALLNI_COLORS.muted, fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
   profileCard: { alignItems: 'flex-end', gap: 8, padding: 16 },
+  profileHeading: { alignItems: 'center', flexDirection: 'row-reverse', gap: 10, justifyContent: 'space-between', width: '100%' },
   shopName: { color: DALLNI_COLORS.greenDark, fontSize: 18, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
   detail: { color: DALLNI_COLORS.ink, fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
   privacyNote: { backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 9, color: DALLNI_COLORS.greenDark, fontSize: 10, lineHeight: 16, overflow: 'hidden', padding: 9, textAlign: 'right', writingDirection: 'rtl' },

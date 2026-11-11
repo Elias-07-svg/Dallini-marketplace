@@ -75,6 +75,21 @@ export default function HomeScreen() {
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="فتح المفضلة"
+          onPress={() => router.push('/customer/favorites' as Href)}
+          style={({ pressed }) => [styles.ownerEntry, styles.customerFavoritesEntry, pressed && styles.ownerEntryPressed]}>
+          <View style={styles.ownerEntryCopy}>
+            <Text style={styles.ownerEntryTitle}>المفضلة</Text>
+            <Text style={styles.ownerEntrySubtitle}>ارجع للمنتجات والمحلات اللي حفظتها.</Text>
+          </View>
+          <View style={styles.ownerEntryAction}>
+            <Text style={styles.ownerEntryActionText}>افتح المفضلة</Text>
+            <Text style={styles.ownerEntryArrow}>←</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
           accessibilityState={{ disabled: isAuthLoading }}
           disabled={isAuthLoading}
           onPress={() => router.push('/auth' as Href)}
@@ -319,6 +334,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderColor: '#D9EAE1',
     marginTop: 12,
+  },
+  customerFavoritesEntry: {
+    backgroundColor: '#F0F6F2',
+    marginTop: 10,
   },
   authEntry: {
     backgroundColor: '#FFFFFF',

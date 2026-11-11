@@ -4,6 +4,8 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StatusBar, StyleSheet,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DALLNI_COLORS, FlowHeader, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
+import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProduct, type CatalogProduct } from '@/lib/product-catalog-supabase';
 
 function formatPrice(value: number) {
@@ -11,6 +13,7 @@ function formatPrice(value: number) {
 }
 
 export default function ProductDetailScreen() {
+  const { refreshFavorites } = useCustomerFavorites();
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const [product, setProduct] = useState<CatalogProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +21,7 @@ export default function ProductDetailScreen() {
 
   useFocusEffect(useCallback(() => {
     let isCurrent = true;
+    void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setHasError(false);
 
@@ -36,7 +40,7 @@ export default function ProductDetailScreen() {
     });
 
     return () => { isCurrent = false; };
-  }, [productId]));
+  }, [productId, refreshFavorites]));
 
   const areas = product
     ? [...new Set([product.shop_location, ...product.service_areas].map((area) => area.trim()).filter(Boolean))]
@@ -102,7 +106,10 @@ export default function ProductDetailScreen() {
                   <Text style={styles.placeholderText}>الصورة مش متاحة حالياً</Text>
                 </View>
               )}
-              {featuredLabel ? <Text style={styles.featured}>{featuredLabel}</Text> : null}
+              <View style={styles.photoActions}>
+                {featuredLabel ? <Text style={styles.featured}>{featuredLabel}</Text> : <View />}
+                <FavoriteButton itemId={product.id} itemType="product" size="large" />
+              </View>
             </SurfaceCard>
 
             <SurfaceCard style={styles.detailsCard}>
@@ -148,6 +155,7 @@ const styles = StyleSheet.create({
   photoPlaceholder: { alignItems: 'center', backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 15, height: 220, justifyContent: 'center', width: '100%' },
   placeholderText: { color: DALLNI_COLORS.muted, fontSize: 11, writingDirection: 'rtl' },
   featured: { alignSelf: 'flex-end', backgroundColor: '#FFF4D9', borderRadius: 9, color: '#8A5A00', fontSize: 10, fontWeight: '900', overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 6 },
+  photoActions: { alignItems: 'center', alignSelf: 'stretch', flexDirection: 'row-reverse', justifyContent: 'space-between' },
   detailsCard: { alignItems: 'flex-end', gap: 10, padding: 15 },
   productName: { color: DALLNI_COLORS.ink, fontSize: 21, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
   price: { color: DALLNI_COLORS.green, fontSize: 19, fontWeight: '900' },

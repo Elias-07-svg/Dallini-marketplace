@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { CustomerFavoritesProvider } from '@/context/customer-favorites';
 import { DemoSessionProvider } from '@/context/demo-session';
 import { SupabaseAuthProvider } from '@/context/supabase-auth';
 import {
@@ -39,22 +40,24 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SupabaseAuthProvider>
-        <DemoSessionProvider>
-          <AnimatedSplashOverlay />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#F6F8F7' },
-            }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="reset-password" />
-            <Stack.Screen name="request" />
-            <Stack.Screen name="review" />
-            <Stack.Screen name="owner" />
-            <Stack.Screen name="customer" />
-          </Stack>
-        </DemoSessionProvider>
+        <CustomerFavoritesProvider>
+          <DemoSessionProvider>
+            <AnimatedSplashOverlay />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#F6F8F7' },
+              }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="reset-password" />
+              <Stack.Screen name="request" />
+              <Stack.Screen name="review" />
+              <Stack.Screen name="owner" />
+              <Stack.Screen name="customer" />
+            </Stack>
+          </DemoSessionProvider>
+        </CustomerFavoritesProvider>
       </SupabaseAuthProvider>
     </ThemeProvider>
   );

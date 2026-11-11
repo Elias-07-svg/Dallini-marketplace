@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DALLNI_COLORS, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
 import { ProductCard } from '@/components/dallni/product-card';
 import { ShopCard } from '@/components/dallni/shop-card';
+import { useCustomerFavorites } from '@/context/customer-favorites';
 import {
   REQUEST_CATEGORIES,
   REQUEST_CATEGORY_ICONS,
@@ -44,6 +45,7 @@ const EMPTY_RANGES: PriceRanges = {
 };
 
 export default function ExploreScreen() {
+  const { refreshFavorites } = useCustomerFavorites();
   const [view, setView] = useState<ExploreView>('products');
   const [searchDraft, setSearchDraft] = useState('');
   const [categoryDraft, setCategoryDraft] = useState('');
@@ -61,6 +63,7 @@ export default function ExploreScreen() {
 
   useFocusEffect(useCallback(() => {
     let isCurrent = true;
+    void refreshFavorites().catch(() => undefined);
     setIsLoading(true);
     setError(false);
 
@@ -86,7 +89,7 @@ export default function ExploreScreen() {
     });
 
     return () => { isCurrent = false; };
-  }, [filters, view]));
+  }, [filters, refreshFavorites, view]));
 
   function applyFilters() {
     const selectedRange = currencyDraft ? rangesDraft[currencyDraft] : null;
@@ -150,6 +153,14 @@ export default function ExploreScreen() {
             <Text style={[styles.viewTabText, view === 'products' && styles.viewTabTextSelected]}>المنتجات</Text>
           </Pressable>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="فتح المفضلة"
+          onPress={() => router.push('/customer/favorites' as Href)}
+          style={({ pressed }) => [styles.favoritesLink, pressed && styles.pressed]}>
+          <Text style={styles.favoritesHeart}>♡</Text>
+          <Text style={styles.favoritesLinkText}>المفضلة</Text>
+        </Pressable>
 
         <SurfaceCard style={styles.filterCard}>
           <TextInput
@@ -307,6 +318,9 @@ const styles = StyleSheet.create({
   viewTabSelected: { backgroundColor: '#FFFFFF', elevation: 1 },
   viewTabText: { color: DALLNI_COLORS.muted, fontSize: 12, fontWeight: '800', writingDirection: 'rtl' },
   viewTabTextSelected: { color: DALLNI_COLORS.greenDark },
+  favoritesLink: { alignItems: 'center', alignSelf: 'flex-end', backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 11, borderWidth: 1, flexDirection: 'row-reverse', gap: 6, minHeight: 38, paddingHorizontal: 12 },
+  favoritesHeart: { color: DALLNI_COLORS.green, fontSize: 20, lineHeight: 22 },
+  favoritesLinkText: { color: DALLNI_COLORS.greenDark, fontSize: 10, fontWeight: '900', writingDirection: 'rtl' },
   filterCard: { gap: 10, padding: 13 },
   searchInput: { backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 11, borderWidth: 1, color: DALLNI_COLORS.ink, fontSize: 12, minHeight: 44, paddingHorizontal: 11, writingDirection: 'rtl' },
   filterLabel: { color: DALLNI_COLORS.ink, fontSize: 11, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
