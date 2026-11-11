@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import * as Linking from 'expo-linking';
 
 import { CustomerRating } from '@/components/dallni/customer-rating';
 import { OrderProgress } from '@/components/dallni/order-progress';
+import { RealtimeAlert } from '@/components/dallni/realtime-alert';
 import {
   ConfirmationPanel,
   DALLNI_COLORS,
@@ -36,15 +37,26 @@ import {
   type CustomerMarketplaceEntry,
 } from '@/lib/customer-marketplace-supabase';
 import {
+  type MarketplaceRealtimeAlert,
   subscribeToCustomerMarketplace,
   subscribeToCustomerRequestOffers,
 } from '@/lib/marketplace-realtime';
+import { ORDER_STAGES } from '@/context/demo-session';
 import {
   createWhatsAppClickToChatUrl,
   normalizeInternationalWhatsAppNumber,
 } from '@/utils/whatsapp';
 
 type ConnectedCustomerRequestsProps = { customerId: string };
+
+function customerRealtimeAlertMessage(event: MarketplaceRealtimeAlert) {
+  if (event.kind === 'new-offer') return 'وصل عرض جديد لطلبك.';
+  if (event.kind === 'order-stage-changed') {
+    const stage = ORDER_STAGES.find((item) => item.id === event.stage)?.label;
+    return stage ? `تغيّرت حالة أحد طلباتك إلى «${stage}».` : null;
+  }
+  return null;
+}
 
 export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerRequestsProps) {
   const [entries, setEntries] = useState<CustomerMarketplaceEntry[]>([]);
@@ -63,6 +75,8 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
   const [customerContactErrorCodes, setCustomerContactErrorCodes] = useState<Record<string, string>>({});
   const [customerContactDrafts, setCustomerContactDrafts] = useState<Record<string, string>>({});
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [realtimeAlert, setRealtimeAlert] = useState<{ key: string; message: string } | null>(null);
+  const seenRealtimeAlerts = useRef(new Set<string>());
   const totalOffers = entries.reduce((total, entry) => total + entry.offers.length, 0);
   const activeOrders = entries.filter(
     (entry) => entry.order && entry.order.stage !== 'completed',
@@ -75,6 +89,15 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
       return { entries: [], errorCode: customerMarketplaceErrorCode(error) };
     }
   }, [customerId]);
+
+  const handleRealtimeAlert = useCallback((event: MarketplaceRealtimeAlert) => {
+    const key = `${event.kind}:${event.eventKey}`;
+    if (seenRealtimeAlerts.current.has(key)) return;
+    seenRealtimeAlerts.current.add(key);
+
+    const message = customerRealtimeAlertMessage(event);
+    if (message) setRealtimeAlert({ key, message });
+  }, []);
 
   useFocusEffect(useCallback(() => {
     let isCurrent = true;
@@ -97,7 +120,10 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
         if (requestIdsKey !== subscribedRequestIds) {
           unsubscribeOffers();
           subscribedRequestIds = requestIdsKey;
-          unsubscribeOffers = subscribeToCustomerRequestOffers(requestIds, scheduleReload);
+          unsubscribeOffers = subscribeToCustomerRequestOffers(requestIds, {
+            refresh: scheduleReload,
+            alert: handleRealtimeAlert,
+          });
         }
       }
     };
@@ -111,7 +137,8 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
       }, 120);
     };
 
-    const unsubscribeMarketplace = subscribeToCustomerMarketplace(customerId, scheduleReload);
+    const handlers = { refresh: scheduleReload, alert: handleRealtimeAlert };
+    const unsubscribeMarketplace = subscribeToCustomerMarketplace(customerId, handlers);
     void reload();
 
     return () => {
@@ -120,7 +147,7 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
       unsubscribeMarketplace();
       unsubscribeOffers();
     };
-  }, [customerId, loadData]));
+  }, [customerId, handleRealtimeAlert, loadData]));
 
   async function refresh() {
     setErrorCode(null);
@@ -328,6 +355,13 @@ export function ConnectedCustomerRequests({ customerId }: ConnectedCustomerReque
         subtitle="تابع طلباتك، قارن العروض، وتواصل عبر واتساب بعد اختيار العرض."
         onBack={() => router.back()}
       />
+      {realtimeAlert ? (
+        <RealtimeAlert
+          announcementKey={realtimeAlert.key}
+          message={realtimeAlert.message}
+          onDismiss={() => setRealtimeAlert(null)}
+        />
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={(

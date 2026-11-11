@@ -19,9 +19,12 @@ import {
   PrimaryButton,
   SurfaceCard,
 } from '@/components/dallni/flow-ui';
+import { RealtimeAlert } from '@/components/dallni/realtime-alert';
 import { OrderProgress } from '@/components/dallni/order-progress';
+import { ORDER_STAGES } from '@/context/demo-session';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import {
+  type MarketplaceRealtimeAlert,
   subscribeToShopInboxRequests,
   subscribeToShopOrders,
 } from '@/lib/marketplace-realtime';
@@ -37,6 +40,15 @@ import {
   type ShopOwnerRating,
 } from '@/lib/shop-owner-supabase';
 
+function shopRealtimeAlertMessage(event: MarketplaceRealtimeAlert) {
+  if (event.kind === 'new-request') return 'وصل طلب جديد إلى صندوق المحل.';
+  if (event.kind === 'order-stage-changed') {
+    const stage = ORDER_STAGES.find((item) => item.id === event.stage)?.label;
+    return stage ? `تغيّرت حالة أحد الطلبات إلى «${stage}».` : null;
+  }
+  return null;
+}
+
 export default function ConnectedShopInboxScreen() {
   const { user, isLoading: isAuthLoading } = useSupabaseAuth();
   const [shop, setShop] = useState<OwnerShopProfile | null>(null);
@@ -47,6 +59,8 @@ export default function ConnectedShopInboxScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const workspaceReloadRef = useRef<(() => void) | null>(null);
+  const seenRealtimeAlerts = useRef(new Set<string>());
+  const [realtimeAlert, setRealtimeAlert] = useState<{ key: string; message: string } | null>(null);
   const openRequestCount = requests.filter((request) => request.status === 'open').length;
   const activeOrderCount = orders.filter((order) => order.stage !== 'completed').length;
   const averageRating = ratings.length
@@ -85,6 +99,15 @@ export default function ConnectedShopInboxScreen() {
     }
   }, [user]);
 
+  const handleRealtimeAlert = useCallback((event: MarketplaceRealtimeAlert) => {
+    const key = `${event.kind}:${event.eventKey}`;
+    if (seenRealtimeAlerts.current.has(key)) return;
+    seenRealtimeAlerts.current.add(key);
+
+    const message = shopRealtimeAlertMessage(event);
+    if (message) setRealtimeAlert({ key, message });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     if (isAuthLoading || !user) return;
 
@@ -102,6 +125,8 @@ export default function ConnectedShopInboxScreen() {
       }, 120);
     };
 
+    const handlers = { refresh: scheduleReload, alert: handleRealtimeAlert };
+
     const syncOrderSubscription = (ownerShop: OwnerShopProfile | null) => {
       if (!isCurrent) return;
       const nextShopId = ownerShop?.status === 'active' ? ownerShop.id : null;
@@ -110,7 +135,7 @@ export default function ConnectedShopInboxScreen() {
       unsubscribeOrders();
       subscribedShopId = nextShopId;
       unsubscribeOrders = nextShopId
-        ? subscribeToShopOrders(nextShopId, scheduleReload)
+        ? subscribeToShopOrders(nextShopId, handlers)
         : () => {};
     };
 
@@ -126,7 +151,7 @@ export default function ConnectedShopInboxScreen() {
       setIsRefreshing(false);
     };
 
-    const unsubscribeRequests = subscribeToShopInboxRequests(scheduleReload);
+    const unsubscribeRequests = subscribeToShopInboxRequests(handlers);
     const reloadNow = () => void reload();
     workspaceReloadRef.current = reloadNow;
     void reload();
@@ -138,7 +163,7 @@ export default function ConnectedShopInboxScreen() {
       unsubscribeRequests();
       unsubscribeOrders();
     };
-  }, [isAuthLoading, loadWorkspace, user]));
+  }, [handleRealtimeAlert, isAuthLoading, loadWorkspace, user]));
 
   function refreshWorkspace() {
     if (isRefreshing) return;
@@ -158,6 +183,14 @@ export default function ConnectedShopInboxScreen() {
         subtitle="تابع الطلبات المتاحة لمحلك والعروض والطلبات اللي اختار فيها الزبون عرضك."
         onBack={() => router.back()}
       />
+
+      {realtimeAlert ? (
+        <RealtimeAlert
+          announcementKey={realtimeAlert.key}
+          message={realtimeAlert.message}
+          onDismiss={() => setRealtimeAlert(null)}
+        />
+      ) : null}
 
       <ScrollView
         contentContainerStyle={styles.content}

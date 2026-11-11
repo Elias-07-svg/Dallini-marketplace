@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfferField } from '@/components/dallni/offer-field';
 import { OrderProgress } from '@/components/dallni/order-progress';
+import { RealtimeAlert } from '@/components/dallni/realtime-alert';
 import {
   ConfirmationPanel,
   DALLNI_COLORS,
@@ -40,6 +41,7 @@ import {
   type ShopOwnerOrder,
   type ShopOffer,
 } from '@/lib/shop-owner-supabase';
+import type { MarketplaceRealtimeAlert } from '@/lib/marketplace-realtime';
 import {
   createWhatsAppTextUrl,
   normalizeInternationalWhatsAppNumber,
@@ -57,6 +59,12 @@ function normalizePrice(value: string, currencyCode: CurrencyCode) {
   return normalized
     .replace(/,(?=\d{3}(?:[,\.]|$))/gu, '')
     .replace(/[٫،,]/gu, '.');
+}
+
+function shopRequestRealtimeAlertMessage(event: MarketplaceRealtimeAlert) {
+  if (event.kind !== 'order-stage-changed') return null;
+  const stage = ORDER_STAGES.find((item) => item.id === event.stage)?.label;
+  return stage ? `تغيّرت حالة الطلب إلى «${stage}».` : null;
 }
 
 export default function ConnectedShopRequestScreen() {
@@ -79,6 +87,8 @@ export default function ConnectedShopRequestScreen() {
   const [orderErrorCode, setOrderErrorCode] = useState<string | null>(null);
   const [offerSaved, setOfferSaved] = useState(false);
   const requestReloadRef = useRef<(() => void) | null>(null);
+  const seenRealtimeAlerts = useRef(new Set<string>());
+  const [realtimeAlert, setRealtimeAlert] = useState<{ key: string; message: string } | null>(null);
 
   const loadRequestData = useCallback(async () => {
     if (!user || !id) {
@@ -126,6 +136,15 @@ export default function ConnectedShopRequestScreen() {
     }
   }, [id, user]);
 
+  const handleRealtimeAlert = useCallback((event: MarketplaceRealtimeAlert) => {
+    const key = `${event.kind}:${event.eventKey}`;
+    if (seenRealtimeAlerts.current.has(key)) return;
+    seenRealtimeAlerts.current.add(key);
+
+    const message = shopRequestRealtimeAlertMessage(event);
+    if (message) setRealtimeAlert({ key, message });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     if (isAuthLoading) return;
 
@@ -153,8 +172,9 @@ export default function ConnectedShopRequestScreen() {
       }, 120);
     };
 
+    const handlers = { refresh: scheduleReload, alert: handleRealtimeAlert };
     const unsubscribeOrder = user && id
-      ? subscribeToShopRequestOrder(id, scheduleReload)
+      ? subscribeToShopRequestOrder(id, handlers)
       : () => {};
     const reloadNow = () => void reload();
     requestReloadRef.current = reloadNow;
@@ -166,7 +186,7 @@ export default function ConnectedShopRequestScreen() {
       if (refreshTimer) clearTimeout(refreshTimer);
       unsubscribeOrder();
     };
-  }, [id, isAuthLoading, loadRequestData, user]));
+  }, [handleRealtimeAlert, id, isAuthLoading, loadRequestData, user]));
 
   function refreshRequest(showLoading = false) {
     const reload = requestReloadRef.current;
@@ -269,6 +289,13 @@ export default function ConnectedShopRequestScreen() {
         subtitle="راجع تفاصيل الطلب والصورة، وجهّز عرضاً مناسباً للزبون."
         onBack={() => router.back()}
       />
+      {realtimeAlert ? (
+        <RealtimeAlert
+          announcementKey={realtimeAlert.key}
+          message={realtimeAlert.message}
+          onDismiss={() => setRealtimeAlert(null)}
+        />
+      ) : null}
 
       <ScrollView
         contentContainerStyle={styles.content}
