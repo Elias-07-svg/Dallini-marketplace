@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -63,7 +63,13 @@ export default function PublicShopProfileScreen() {
               <Text style={styles.privacyNote}>معلومات التواصل بتضل خاصة، وبتظهر فقط بعد اختيار عرض على طلب.</Text>
             </SurfaceCard>
             <Text style={styles.sectionTitle}>المنتجات المتاحة ({products.length})</Text>
-            {products.length ? products.map((product) => <ProductCard key={product.id} product={product} />) : (
+            {products.length ? products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: product.id } } as Href)}
+              />
+            )) : (
               <SurfaceCard style={styles.stateCard}><Text style={styles.stateText}>ما في منتجات منشورة حالياً.</Text></SurfaceCard>
             )}
           </>

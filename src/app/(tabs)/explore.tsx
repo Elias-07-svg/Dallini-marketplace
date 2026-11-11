@@ -233,7 +233,12 @@ export default function ExploreScreen() {
           </SurfaceCard>
         ) : view === 'products' ? (
           products.length ? products.map((product) => (
-            <ProductCard key={product.id} product={product} onPress={() => router.push({ pathname: '/shop/[shopId]', params: { shopId: product.shop_id } } as Href)} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onPress={() => router.push({ pathname: '/product/[productId]', params: { productId: product.id } } as Href)}
+              onShopPress={() => router.push({ pathname: '/shop/[shopId]', params: { shopId: product.shop_id } } as Href)}
+            />
           )) : <EmptyState text="ما لقينا منتجات بهالفلاتر. جرّب توسّع البحث." />
         ) : (
           shops.length ? shops.map((shop) => (

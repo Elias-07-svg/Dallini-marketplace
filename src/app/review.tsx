@@ -86,9 +86,8 @@ export default function ReviewScreen() {
   const attachmentUri = imageText?.trim() ? imageText : null;
   const attachmentMimeType = imageMimeTypeText?.trim() || null;
   const [detailsText, setDetailsText] = useState(detailText ?? '');
-  const [category, setCategory] = useState<string | null>(
-    REQUEST_CATEGORIES.find((requestCategory) => requestCategory === categoryText) ?? null,
-  );
+  const initialCategory = categoryText?.trim().slice(0, 80) ?? '';
+  const [category, setCategory] = useState<string | null>(initialCategory || null);
   const [area, setArea] = useState('');
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -100,6 +99,9 @@ export default function ReviewScreen() {
   const hasRequestContent = detailsText.trim().length > 0 || attachmentUri !== null;
   const canApprove =
     hasRequestContent && category !== null && area.trim().length > 0;
+  const categoryOptions = category && !REQUEST_CATEGORIES.includes(category as (typeof REQUEST_CATEGORIES)[number])
+    ? [...REQUEST_CATEGORIES, category]
+    : REQUEST_CATEGORIES;
 
   async function handleApproval() {
     if (!approved || !canApprove || !category || !area.trim() || isAuthLoading || isSaving) {
@@ -204,7 +206,7 @@ export default function ReviewScreen() {
         <SurfaceCard style={styles.matchingFields}>
           <Text style={styles.matchingTitle}>اختار فئة الطلب</Text>
           <View style={styles.categoryOptions}>
-            {REQUEST_CATEGORIES.map((requestCategory) => {
+            {categoryOptions.map((requestCategory) => {
               const selected = category === requestCategory;
               return (
                 <Pressable

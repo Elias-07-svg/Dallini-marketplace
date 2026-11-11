@@ -56,6 +56,14 @@ async function signedProductImage(imagePath: string | null) {
   return error ? null : data.signedUrl;
 }
 
+function withProductImage(row: Omit<CatalogProduct, 'image_url'>): Promise<CatalogProduct> {
+  return signedProductImage(row.image_path).then((image_url) => ({
+    ...row,
+    price_amount: Number(row.price_amount),
+    image_url,
+  }));
+}
+
 export async function loadCatalogProducts(filters: ProductCatalogFilters = {}) {
   const { data, error } = await requireSupabase().rpc('dallni_list_catalog_products', {
     p_search: filters.search?.trim() || null,
@@ -72,11 +80,17 @@ export async function loadCatalogProducts(filters: ProductCatalogFilters = {}) {
   if (error) throw error;
 
   const rows = (data ?? []) as Omit<CatalogProduct, 'image_url'>[];
-  return Promise.all(rows.map(async (row) => ({
-    ...row,
-    price_amount: Number(row.price_amount),
-    image_url: await signedProductImage(row.image_path),
-  } satisfies CatalogProduct)));
+  return Promise.all(rows.map(withProductImage));
+}
+
+export async function loadCatalogProduct(productId: string) {
+  const { data, error } = await requireSupabase().rpc('dallni_get_catalog_product', {
+    p_product_id: productId,
+  });
+
+  if (error) throw error;
+  const row = ((data ?? []) as Omit<CatalogProduct, 'image_url'>[])[0];
+  return row ? withProductImage(row) : null;
 }
 
 export async function loadPublicShops(filters: {

@@ -10,9 +10,11 @@ function formatPrice(value: number) {
 export function ProductCard({
   product,
   onPress,
+  onShopPress,
 }: {
   product: CatalogProduct;
   onPress?: () => void;
+  onShopPress?: () => void;
 }) {
   const area = [...new Set([product.shop_location, ...product.service_areas].map((item) => item.trim()).filter(Boolean))]
     .join('، ');
@@ -24,43 +26,54 @@ export function ProductCard({
 
   const content = (
     <SurfaceCard style={styles.card}>
-      <View style={styles.copy}>
-        <View style={styles.topLine}>
-          <Text numberOfLines={1} style={styles.name}>{product.name}</Text>
-          {featuredLabel ? <Text style={styles.featured}>{featuredLabel}</Text> : null}
-        </View>
-        <Text style={styles.price}>{formatPrice(product.price_amount)} {product.currency_code}</Text>
-        <View style={styles.metaLine}>
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? `تفاصيل ${product.name}، ${formatPrice(product.price_amount)} ${product.currency_code}` : undefined}
+        disabled={!onPress}
+        onPress={onPress}
+        style={({ pressed }) => [styles.productContent, pressed && onPress && styles.pressed]}>
+        <View style={styles.copy}>
+          <View style={styles.topLine}>
+            <Text numberOfLines={1} style={styles.name}>{product.name}</Text>
+            {featuredLabel ? <Text style={styles.featured}>{featuredLabel}</Text> : null}
+          </View>
+          <Text style={styles.price}>{formatPrice(product.price_amount)} {product.currency_code}</Text>
           <Text style={styles.category}>{product.category}</Text>
-          <Text style={styles.shopName}>{product.shop_name}</Text>
+          {area ? <Text numberOfLines={2} style={styles.area}>{area}</Text> : null}
         </View>
-        {area ? <Text numberOfLines={2} style={styles.area}>{area}</Text> : null}
-      </View>
-      {product.image_url ? (
-        <Image source={{ uri: product.image_url }} resizeMode="cover" style={styles.image} />
+        {product.image_url ? (
+          <Image source={{ uri: product.image_url }} resizeMode="cover" style={styles.image} />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.placeholderIcon}>صورة</Text>
+          </View>
+        )}
+      </Pressable>
+      {onShopPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`فتح ملف محل ${product.shop_name}`}
+          onPress={onShopPress}
+          style={({ pressed }) => [styles.shopLink, pressed && styles.shopLinkPressed]}>
+          <Text style={styles.shopLinkArrow}>←</Text>
+          <Text style={styles.shopName}>{product.shop_name}</Text>
+          <Text style={styles.shopLinkHint}>من المحل</Text>
+        </Pressable>
       ) : (
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.placeholderIcon}>صورة</Text>
+        <View style={styles.shopLinkStatic}>
+          <Text style={styles.shopName}>{product.shop_name}</Text>
+          <Text style={styles.shopLinkHint}>من المحل</Text>
         </View>
       )}
     </SurfaceCard>
   );
 
-  if (!onPress) return content;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${product.name}، ${formatPrice(product.price_amount)} ${product.currency_code}، من ${product.shop_name}`}
-      onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}>
-      {content}
-    </Pressable>
-  );
+  return content;
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center', flexDirection: 'row-reverse', gap: 12, padding: 12 },
+  card: { gap: 9, padding: 11 },
+  productContent: { alignItems: 'center', flexDirection: 'row-reverse', gap: 12 },
   copy: { alignItems: 'flex-end', flex: 1, gap: 5 },
   topLine: { alignItems: 'center', flexDirection: 'row-reverse', gap: 6, width: '100%' },
   name: { color: DALLNI_COLORS.ink, flex: 1, fontSize: 14, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
@@ -68,10 +81,15 @@ const styles = StyleSheet.create({
   price: { color: DALLNI_COLORS.green, fontSize: 14, fontWeight: '900', textAlign: 'right' },
   metaLine: { alignItems: 'center', flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6 },
   category: { backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 8, color: DALLNI_COLORS.greenDark, fontSize: 9, fontWeight: '800', overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 4, writingDirection: 'rtl' },
-  shopName: { color: DALLNI_COLORS.muted, flexShrink: 1, fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  shopName: { color: DALLNI_COLORS.greenDark, flexShrink: 1, fontSize: 10, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  shopLink: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: '#F7FAF8', borderRadius: 9, flexDirection: 'row-reverse', gap: 6, minHeight: 34, paddingHorizontal: 9 },
+  shopLinkStatic: { alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row-reverse', gap: 6, minHeight: 28, paddingHorizontal: 4 },
+  shopLinkHint: { color: DALLNI_COLORS.muted, fontSize: 9, writingDirection: 'rtl' },
+  shopLinkArrow: { color: DALLNI_COLORS.green, fontSize: 14 },
   area: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 15, textAlign: 'right', writingDirection: 'rtl' },
   image: { backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 13, height: 100, width: 100 },
   imagePlaceholder: { alignItems: 'center', backgroundColor: DALLNI_COLORS.greenLight, borderRadius: 13, height: 100, justifyContent: 'center', width: 100 },
   placeholderIcon: { color: DALLNI_COLORS.greenDark, fontSize: 11, fontWeight: '800', writingDirection: 'rtl' },
   pressed: { opacity: 0.85 },
+  shopLinkPressed: { opacity: 0.75 },
 });
