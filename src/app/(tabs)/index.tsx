@@ -50,11 +50,14 @@ export default function HomeScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="ابدأ طلب جديد"
+            accessibilityLabel="ساعدني أرتّب طلبي"
             style={styles.primaryButton}
-            onPress={() => router.push('/request')}
+            onPress={() => router.push('/assistant')}
           >
-            <Text style={styles.primaryText}>ابدأ طلب جديد ←</Text>
+            <Text style={styles.primaryText}>ساعدني أرتّب طلبي ←</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/request')} style={styles.manualRequestButton}>
+            <Text style={styles.manualRequestText}>اكتب الطلب بنفسك أو أضف صورة</Text>
           </Pressable>
         </View>
 
@@ -312,6 +315,18 @@ const styles = StyleSheet.create({
     color: '#26352E',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  manualRequestButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    paddingTop: 15,
+    paddingBottom: 2,
+  },
+  manualRequestText: {
+    color: '#E1F0E9',
+    fontSize: 10,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
   },
   ownerEntry: {
     alignItems: 'center',

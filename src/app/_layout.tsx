@@ -52,6 +52,7 @@ export default function RootLayout() {
               <Stack.Screen name="auth" />
               <Stack.Screen name="reset-password" />
               <Stack.Screen name="request" />
+              <Stack.Screen name="assistant" />
               <Stack.Screen name="review" />
               <Stack.Screen name="owner" />
               <Stack.Screen name="customer" />

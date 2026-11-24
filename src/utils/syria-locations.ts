@@ -6,6 +6,7 @@ export type SyriaLocation = {
   id: string;
   parentId: string | null;
   name: string;
+  nameEnglish: string;
   level: SyriaLocationLevel;
 };
 
@@ -21,17 +22,17 @@ function addLocation(location: SyriaLocation) {
   }
 }
 
-SYRIA_LOCATION_CATALOG.governorates.forEach(([id, name]) => {
-  addLocation({ id, parentId: null, name, level: 'governorate' });
+SYRIA_LOCATION_CATALOG.governorates.forEach(([id, name, nameEnglish]) => {
+  addLocation({ id, parentId: null, name, nameEnglish, level: 'governorate' });
 });
-SYRIA_LOCATION_CATALOG.districts.forEach(([id, parentId, name]) => {
-  addLocation({ id, parentId, name, level: 'district' });
+SYRIA_LOCATION_CATALOG.districts.forEach(([id, parentId, name, nameEnglish]) => {
+  addLocation({ id, parentId, name, nameEnglish, level: 'district' });
 });
-SYRIA_LOCATION_CATALOG.subdistricts.forEach(([id, parentId, name]) => {
-  addLocation({ id, parentId, name, level: 'subdistrict' });
+SYRIA_LOCATION_CATALOG.subdistricts.forEach(([id, parentId, name, nameEnglish]) => {
+  addLocation({ id, parentId, name, nameEnglish, level: 'subdistrict' });
 });
-SYRIA_LOCATION_CATALOG.localities.forEach(([id, parentId, name]) => {
-  addLocation({ id, parentId, name, level: 'locality' });
+SYRIA_LOCATION_CATALOG.localities.forEach(([id, parentId, name, nameEnglish]) => {
+  addLocation({ id, parentId, name, nameEnglish, level: 'locality' });
 });
 
 export function getSyriaLocation(value: string | null | undefined) {
@@ -44,7 +45,7 @@ export function isSyriaLocation(value: string | null | undefined): value is stri
 
 export function getSyriaLocationChildren(parentId?: string | null) {
   return parentId ? childrenByParent.get(parentId) ?? [] : SYRIA_LOCATION_CATALOG.governorates.map(
-    ([id, name]) => ({ id, parentId: null, name, level: 'governorate' as const }),
+    ([id, name, nameEnglish]) => ({ id, parentId: null, name, nameEnglish, level: 'governorate' as const }),
   );
 }
 
@@ -53,7 +54,10 @@ export function searchSyriaLocalities(subdistrictId: string, query: string, limi
   if (normalizedQuery.length < 1) return [];
 
   return (childrenByParent.get(subdistrictId) ?? [])
-    .filter((location) => location.name.toLocaleLowerCase('ar').includes(normalizedQuery))
+    .filter((location) =>
+      location.name.toLocaleLowerCase('ar').includes(normalizedQuery) ||
+      location.nameEnglish.toLocaleLowerCase('en').includes(normalizedQuery),
+    )
     .slice(0, limit);
 }
 
@@ -70,10 +74,19 @@ export function getSyriaLocationPath(value: string | null | undefined) {
   return path;
 }
 
+export function getSyriaLocationName(location: SyriaLocation, language: 'ar' | 'en' = 'ar') {
+  return language === 'ar' ? location.name : location.nameEnglish;
+}
+
 export function formatSyriaLocation(value: string | null | undefined) {
-  if (!value) return 'الموقع غير محدد';
+  return formatSyriaLocationForLanguage(value, 'ar');
+}
+
+export function formatSyriaLocationForLanguage(value: string | null | undefined, language: 'ar' | 'en') {
+  if (!value) return language === 'ar' ? 'الموقع غير محدد' : 'Location not specified';
   const path = getSyriaLocationPath(value);
-  return path.length ? path.map((item) => item.name).join('، ') : 'موقع محفوظ بحاجة لتحديث';
+  if (!path.length) return language === 'ar' ? 'موقع محفوظ بحاجة لتحديث' : 'Saved location needs updating';
+  return path.map((item) => getSyriaLocationName(item, language)).join(language === 'ar' ? '، ' : ', ');
 }
 
 export function locationsOverlap(firstId: string, secondId: string) {

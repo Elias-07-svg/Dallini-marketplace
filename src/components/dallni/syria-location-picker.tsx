@@ -3,12 +3,14 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DALLNI_COLORS } from '@/components/dallni/flow-ui';
 import {
-  formatSyriaLocation,
+  formatSyriaLocationForLanguage,
   getSyriaLocation,
   getSyriaLocationChildren,
+  getSyriaLocationName,
   getSyriaLocationPath,
   searchSyriaLocalities,
   SYRIA_LOCATION_LEVEL_LABELS,
+  type SyriaLocationLevel,
   type SyriaLocation,
 } from '@/utils/syria-locations';
 
@@ -17,13 +19,14 @@ type SyriaLocationPickerProps = {
   value: string;
   onChange: (locationId: string) => void;
   disabled?: boolean;
+  language?: 'ar' | 'en';
 };
 
 export function SyriaLocationPicker(props: SyriaLocationPickerProps) {
   return <SyriaLocationPickerForm key={props.value} {...props} />;
 }
 
-function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: SyriaLocationPickerProps) {
+function SyriaLocationPickerForm({ label, value, onChange, disabled = false, language = 'ar' }: SyriaLocationPickerProps) {
   const selectedPath = getSyriaLocationPath(value);
   const [isOpen, setIsOpen] = useState(false);
   const [governorateId, setGovernorateId] = useState(() => selectedPath.find((location) => location.level === 'governorate')?.id ?? '');
@@ -64,6 +67,26 @@ function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: S
   const selectedDistrict = getSyriaLocation(districtId);
   const selectedSubdistrict = getSyriaLocation(subdistrictId);
   const selectedLocality = getSyriaLocation(localityId);
+  const copy = language === 'ar'
+    ? {
+        hide: 'إخفاء', choose: 'اختيار', governorate: 'اختر المحافظة', district: 'اختر المدينة أو المنطقة',
+        subdistrict: 'اختر الناحية', search: 'ابحث عن بلدة أو قرية', localityA11y: 'ابحث عن بلدة أو قرية سورية',
+        placeholder: 'اكتب اسم البلدة أو القرية', empty: 'ما لقينا بلدة أو قرية بهالاسم ضمن الناحية المختارة.',
+        hint: 'اختر المحافظة، ثم المدينة أو المنطقة، والناحية، والبلدة أو القرية. فيك تعتمد أي مستوى حسب نطاق الخدمة.',
+        levels: SYRIA_LOCATION_LEVEL_LABELS,
+      }
+    : {
+        hide: 'Hide', choose: 'Choose', governorate: 'Choose a governorate', district: 'Choose a city or district',
+        subdistrict: 'Choose a subdistrict', search: 'Search for a town or village', localityA11y: 'Search Syrian towns and villages',
+        placeholder: 'Type a town or village name', empty: 'No town or village with that name in the selected subdistrict.',
+        hint: 'Choose a governorate, then a city or district, subdistrict, and town or village. You can select a broader area when it fits your service range.',
+        levels: {
+          governorate: 'governorate',
+          district: 'city or district',
+          subdistrict: 'subdistrict',
+          locality: 'town or village',
+        } satisfies Record<SyriaLocationLevel, string>,
+      };
 
   return (
     <View style={styles.container}>
@@ -74,18 +97,19 @@ function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: S
         disabled={disabled}
         onPress={() => setIsOpen((current) => !current)}
         style={({ pressed }) => [styles.selected, pressed && !disabled && styles.pressed]}>
-        <Text style={[styles.selectedValue, !value && styles.placeholder]}>{formatSyriaLocation(value)}</Text>
-        <Text style={styles.changeText}>{isOpen ? 'إخفاء' : 'اختيار'}</Text>
+        <Text style={[styles.selectedValue, !value && styles.placeholder, language === 'en' && styles.englishText]}>{formatSyriaLocationForLanguage(value, language)}</Text>
+        <Text style={styles.changeText}>{isOpen ? copy.hide : copy.choose}</Text>
       </Pressable>
 
       {isOpen && !disabled ? (
         <View style={styles.picker}>
-          <Text style={styles.stepLabel}>١. اختر المحافظة</Text>
+          <Text style={[styles.stepLabel, language === 'en' && styles.englishText]}>{language === 'ar' ? '١. ' : '1. '}{copy.governorate}</Text>
           <View style={styles.options}>
             {getSyriaLocationChildren().map((governorate) => (
               <LocationOption
                 key={governorate.id}
                 location={governorate}
+                language={language}
                 selected={governorateId === governorate.id}
                 onPress={() => chooseGovernorate(governorate.id)}
               />
@@ -93,13 +117,14 @@ function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: S
           </View>
           {selectedGovernorate ? (
             <>
-              <CommitLocationButton location={selectedGovernorate} onPress={() => chooseLocation(selectedGovernorate)} />
-              <Text style={styles.stepLabel}>٢. اختر المدينة أو المنطقة</Text>
+              <CommitLocationButton location={selectedGovernorate} onPress={() => chooseLocation(selectedGovernorate)} language={language} levelLabel={copy.levels.governorate} />
+              <Text style={[styles.stepLabel, language === 'en' && styles.englishText]}>{language === 'ar' ? '٢. ' : '2. '}{copy.district}</Text>
               <View style={styles.options}>
                 {districts.map((district) => (
                   <LocationOption
                     key={district.id}
                     location={district}
+                    language={language}
                     selected={districtId === district.id}
                     onPress={() => chooseDistrict(district.id)}
                   />
@@ -109,13 +134,14 @@ function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: S
           ) : null}
           {selectedDistrict ? (
             <>
-              <CommitLocationButton location={selectedDistrict} onPress={() => chooseLocation(selectedDistrict)} />
-              <Text style={styles.stepLabel}>٣. اختر الناحية</Text>
+              <CommitLocationButton location={selectedDistrict} onPress={() => chooseLocation(selectedDistrict)} language={language} levelLabel={copy.levels.district} />
+              <Text style={[styles.stepLabel, language === 'en' && styles.englishText]}>{language === 'ar' ? '٣. ' : '3. '}{copy.subdistrict}</Text>
               <View style={styles.options}>
                 {subdistricts.map((subdistrict) => (
                   <LocationOption
                     key={subdistrict.id}
                     location={subdistrict}
+                    language={language}
                     selected={subdistrictId === subdistrict.id}
                     onPress={() => chooseSubdistrict(subdistrict.id)}
                   />
@@ -125,61 +151,60 @@ function SyriaLocationPickerForm({ label, value, onChange, disabled = false }: S
           ) : null}
           {selectedSubdistrict ? (
             <>
-              <CommitLocationButton location={selectedSubdistrict} onPress={() => chooseLocation(selectedSubdistrict)} />
-              <Text style={styles.stepLabel}>٤. ابحث عن بلدة أو قرية</Text>
+              <CommitLocationButton location={selectedSubdistrict} onPress={() => chooseLocation(selectedSubdistrict)} language={language} levelLabel={copy.levels.subdistrict} />
+              <Text style={[styles.stepLabel, language === 'en' && styles.englishText]}>{language === 'ar' ? '٤. ' : '4. '}{copy.search}</Text>
               <TextInput
-                accessibilityLabel="ابحث عن بلدة أو قرية سورية"
+                accessibilityLabel={copy.localityA11y}
                 autoCorrect={false}
                 onChangeText={setLocalitySearch}
-                placeholder="اكتب اسم البلدة أو القرية"
+                placeholder={copy.placeholder}
                 placeholderTextColor={DALLNI_COLORS.muted}
-                style={styles.searchInput}
-                textAlign="right"
+                style={[styles.searchInput, language === 'en' && styles.englishText]}
+                textAlign={language === 'ar' ? 'right' : 'left'}
                 value={localitySearch}
               />
               {selectedLocality ? (
-                <CommitLocationButton location={selectedLocality} onPress={() => chooseLocation(selectedLocality)} />
+                <CommitLocationButton location={selectedLocality} onPress={() => chooseLocation(selectedLocality)} language={language} levelLabel={copy.levels.locality} />
               ) : null}
               <View style={styles.options}>
                 {localities.map((locality) => (
                   <LocationOption
                     key={locality.id}
                     location={locality}
+                    language={language}
                     selected={localityId === locality.id}
                     onPress={() => setLocalityId(locality.id)}
                   />
                 ))}
               </View>
               {localitySearch.trim() && localities.length === 0 ? (
-                <Text style={styles.emptyText}>ما لقينا بلدة أو قرية بهالاسم ضمن الناحية المختارة.</Text>
+                <Text style={[styles.emptyText, language === 'en' && styles.englishText]}>{copy.empty}</Text>
               ) : null}
             </>
           ) : null}
-          <Text style={styles.hint}>
-            اختر المحافظة، ثم المدينة أو المنطقة، والناحية، والبلدة أو القرية. فيك تعتمد أي مستوى حسب نطاق الخدمة.
-          </Text>
+          <Text style={[styles.hint, language === 'en' && styles.englishText]}>{copy.hint}</Text>
         </View>
       ) : null}
     </View>
   );
 }
 
-function LocationOption({ location, selected, onPress }: { location: SyriaLocation; selected: boolean; onPress: () => void }) {
+function LocationOption({ location, selected, onPress, language }: { location: SyriaLocation; selected: boolean; onPress: () => void; language: 'ar' | 'en' }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.pressed]}>
-      <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{location.name}</Text>
+      <Text style={[styles.optionText, selected && styles.optionTextSelected, language === 'en' && styles.englishText]}>{getSyriaLocationName(location, language)}</Text>
     </Pressable>
   );
 }
 
-function CommitLocationButton({ location, onPress }: { location: SyriaLocation; onPress: () => void }) {
+function CommitLocationButton({ location, onPress, language, levelLabel }: { location: SyriaLocation; onPress: () => void; language: 'ar' | 'en'; levelLabel: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.commitButton, pressed && styles.pressed]}>
-      <Text style={styles.commitText}>اعتماد {SYRIA_LOCATION_LEVEL_LABELS[location.level]}: {location.name}</Text>
+      <Text style={[styles.commitText, language === 'en' && styles.englishText]}>{language === 'ar' ? `اعتماد ${levelLabel}: ${location.name}` : `Select ${levelLabel}: ${getSyriaLocationName(location, language)}`}</Text>
     </Pressable>
   );
 }
@@ -203,5 +228,6 @@ const styles = StyleSheet.create({
   searchInput: { backgroundColor: '#FFFFFF', borderColor: DALLNI_COLORS.border, borderRadius: 11, borderWidth: 1, color: DALLNI_COLORS.ink, fontSize: 12, minHeight: 42, paddingHorizontal: 11, textAlign: 'right', writingDirection: 'rtl' },
   emptyText: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
   hint: { color: DALLNI_COLORS.muted, fontSize: 10, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
+  englishText: { textAlign: 'left', writingDirection: 'ltr' },
   pressed: { opacity: 0.72 },
 });

@@ -30,12 +30,14 @@ const quickExamples = ['بدّي موبايل جديد', 'كنباية مستع�
 const MAX_REQUEST_IMAGE_DIMENSION = 1920;
 
 export default function RequestScreen() {
-  const { prompt, category } = useLocalSearchParams<{
+  const { prompt, category, area } = useLocalSearchParams<{
     prompt?: string | string[];
     category?: string | string[];
+    area?: string | string[];
   }>();
   const starterPrompt = Array.isArray(prompt) ? prompt[0] : prompt;
   const starterCategory = Array.isArray(category) ? category[0] : category;
+  const starterArea = Array.isArray(area) ? area[0] : area;
   const [details, setDetails] = useState(starterPrompt ?? '');
   const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
   const [attachmentMimeType, setAttachmentMimeType] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function RequestScreen() {
         imageUri: attachmentUri ?? '',
         imageMimeType: attachmentMimeType ?? '',
         category: starterCategory ?? '',
+        area: starterArea ?? '',
       },
     });
   }

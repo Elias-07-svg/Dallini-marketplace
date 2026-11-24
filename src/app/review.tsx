@@ -71,11 +71,12 @@ function friendlyPublishError(error: unknown) {
 export default function ReviewScreen() {
   const { addApprovedRequest } = useDemoSession();
   const { user, isLoading: isAuthLoading } = useSupabaseAuth();
-  const { details, imageUri, imageMimeType, category: selectedCategory } = useLocalSearchParams<{
+  const { details, imageUri, imageMimeType, category: selectedCategory, area: selectedArea } = useLocalSearchParams<{
     details?: string | string[];
     imageUri?: string | string[];
     imageMimeType?: string | string[];
     category?: string | string[];
+    area?: string | string[];
   }>();
   const detailText = Array.isArray(details) ? details[0] : details;
   const imageText = Array.isArray(imageUri) ? imageUri[0] : imageUri;
@@ -85,12 +86,13 @@ export default function ReviewScreen() {
   const categoryText = Array.isArray(selectedCategory)
     ? selectedCategory[0]
     : selectedCategory;
+  const areaText = Array.isArray(selectedArea) ? selectedArea[0] : selectedArea;
   const attachmentUri = imageText?.trim() ? imageText : null;
   const attachmentMimeType = imageMimeTypeText?.trim() || null;
   const [detailsText, setDetailsText] = useState(detailText ?? '');
   const initialCategory = categoryText?.trim().slice(0, 80) ?? '';
   const [category, setCategory] = useState<string | null>(initialCategory || null);
-  const [area, setArea] = useState('');
+  const [area, setArea] = useState(isSyriaLocation(areaText) ? areaText : '');
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [savedToSupabase, setSavedToSupabase] = useState(false);
