@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { isSyriaLocation } from '@/utils/syria-locations';
 
 const PRODUCT_IMAGE_BUCKET = 'product-images';
 const SIGNED_PRODUCT_IMAGE_SECONDS = 60 * 60;
@@ -7,7 +8,7 @@ export type ProductCatalogFilters = {
   search?: string;
   category?: string;
   area?: string;
-  currencyCode?: 'USD' | 'LBP' | null;
+  currencyCode?: 'USD' | 'SYP' | null;
   minPrice?: number | null;
   maxPrice?: number | null;
   shopId?: string | null;
@@ -20,7 +21,7 @@ export type CatalogProduct = {
   description: string;
   category: string;
   price_amount: number;
-  currency_code: 'USD' | 'LBP';
+  currency_code: 'USD' | 'SYP' | 'LBP';
   image_path: string | null;
   image_url: string | null;
   shop_name: string;
@@ -79,7 +80,8 @@ export async function loadCatalogProducts(filters: ProductCatalogFilters = {}) {
 
   if (error) throw error;
 
-  const rows = (data ?? []) as Omit<CatalogProduct, 'image_url'>[];
+  const rows = ((data ?? []) as Omit<CatalogProduct, 'image_url'>[])
+    .filter((row) => row.currency_code !== 'LBP' && isSyriaLocation(row.shop_location));
   return Promise.all(rows.map(withProductImage));
 }
 
@@ -89,7 +91,8 @@ export async function loadCatalogProduct(productId: string) {
   });
 
   if (error) throw error;
-  const row = ((data ?? []) as Omit<CatalogProduct, 'image_url'>[])[0];
+  const row = ((data ?? []) as Omit<CatalogProduct, 'image_url'>[])
+    .find((product) => product.currency_code !== 'LBP' && isSyriaLocation(product.shop_location));
   return row ? withProductImage(row) : null;
 }
 
@@ -108,7 +111,7 @@ export async function loadPublicShops(filters: {
   });
 
   if (error) throw error;
-  return (data ?? []) as PublicShop[];
+  return ((data ?? []) as PublicShop[]).filter((shop) => isSyriaLocation(shop.location));
 }
 
 export async function loadPublicShop(shopId: string) {
@@ -122,5 +125,5 @@ export async function loadPublicShop(shopId: string) {
   });
 
   if (error) throw error;
-  return ((data ?? []) as PublicShop[])[0] ?? null;
+  return ((data ?? []) as PublicShop[]).find((shop) => isSyriaLocation(shop.location)) ?? null;
 }

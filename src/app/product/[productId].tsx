@@ -9,6 +9,7 @@ import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProduct, type CatalogProduct } from '@/lib/product-catalog-supabase';
 import { loadPublicShopRatingSummaries, type PublicShopRatingSummary } from '@/lib/public-shop-ratings';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
@@ -63,7 +64,9 @@ export default function ProductDetailScreen() {
   }, [productId, refreshFavorites]));
 
   const areas = product
-    ? [...new Set([product.shop_location, ...product.service_areas].map((area) => area.trim()).filter(Boolean))]
+    ? [...new Set([product.shop_location, ...product.service_areas]
+        .filter(isSyriaLocation)
+        .map(formatSyriaLocation))]
     : [];
   const featuredLabel = product?.featured_tier === 'vvip'
     ? 'مميّز VVIP'
@@ -148,7 +151,7 @@ export default function ProductDetailScreen() {
                 <View style={styles.shopCopy}>
                   <Text style={styles.shopHint}>المنتج من محل</Text>
                   <Text style={styles.shopName}>{product.shop_name}</Text>
-                  {product.shop_location ? <Text style={styles.shopLocation}>{product.shop_location}</Text> : null}
+                  {product.shop_location ? <Text style={styles.shopLocation}>{formatSyriaLocation(product.shop_location)}</Text> : null}
                   <ShopRatingSummary summary={ratingSummary} isLoading={ratingLoading} hasError={ratingError} compact />
                 </View>
               </SurfaceCard>

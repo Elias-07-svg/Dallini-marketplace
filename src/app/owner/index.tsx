@@ -17,6 +17,7 @@ import { useDemoSession } from '@/context/demo-session';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import { mockShopRequests } from '@/data/shop-requests';
 import { matchRequestToShop } from '@/utils/request-matching';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 
 export default function ShopInboxScreen() {
   const { approvedRequests, shopProfile } = useDemoSession();
@@ -100,7 +101,7 @@ export default function ShopInboxScreen() {
             {shopProfile.shopName || 'أضف اسم المحل ليظهر على عروضك.'}
           </Text>
           <Text style={styles.profileDetail}>
-            {shopProfile.location || 'منطقة الخدمة غير محددة'}
+            {formatSyriaLocation(shopProfile.location) || 'منطقة الخدمة غير محددة'}
           </Text>
           <Text style={styles.profileDetail}>
             {shopProfile.whatsappNumber || 'رقم واتساب غير محدد'}
@@ -235,12 +236,12 @@ export default function ShopInboxScreen() {
                 <View style={styles.requestMetaBottom}>
                   {isCustomerRequest ? (
                     <>
-                      <Text style={styles.location}>{entry.area}</Text>
+                      <Text style={styles.location}>{formatSyriaLocation(entry.area)}</Text>
                       <Text style={styles.sessionTag}>موافَق عليه</Text>
                     </>
                   ) : (
                     <>
-                      <Text style={styles.location}>{entry.request.location}</Text>
+                      <Text style={styles.location}>{formatSyriaLocation(entry.request.location)}</Text>
                       <Text style={styles.budget}>{entry.request.budgetLabel}</Text>
                     </>
                   )}

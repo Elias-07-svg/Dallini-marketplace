@@ -23,10 +23,12 @@ import {
   SurfaceCard,
 } from '@/components/dallni/flow-ui';
 import { REQUEST_CATEGORIES } from '@/data/request-categories';
+import { SyriaLocationPicker } from '@/components/dallni/syria-location-picker';
 import {
   publishCustomerRequest,
   type CustomerRequestPublishProgress,
 } from '@/lib/publish-customer-request';
+import { isSyriaLocation } from '@/utils/syria-locations';
 
 const SHOP_SHARING_DISCLOSURE =
   'بعد ما تنشر طلبك، أصحاب المحلات الموثّقين بيقدروا يشوفوا وصف الطلب وفئته ومنطقته والصورة المرفقة ليقدّموا عروض. إذا اخترت عرض، المحل المختار بيضل عنده وصول لتفاصيل الطلب والصورة للمتابعة.';
@@ -98,13 +100,13 @@ export default function ReviewScreen() {
     useState<CustomerRequestPublishProgress | null>(null);
   const hasRequestContent = detailsText.trim().length > 0 || attachmentUri !== null;
   const canApprove =
-    hasRequestContent && category !== null && area.trim().length > 0;
+    hasRequestContent && category !== null && isSyriaLocation(area);
   const categoryOptions = category && !REQUEST_CATEGORIES.includes(category as (typeof REQUEST_CATEGORIES)[number])
     ? [...REQUEST_CATEGORIES, category]
     : REQUEST_CATEGORIES;
 
   async function handleApproval() {
-    if (!approved || !canApprove || !category || !area.trim() || isAuthLoading || isSaving) {
+    if (!approved || !canApprove || !category || !isSyriaLocation(area) || isAuthLoading || isSaving) {
       return;
     }
 
@@ -118,7 +120,7 @@ export default function ReviewScreen() {
             title: requestTitle(detailsText, attachmentUri !== null),
             details: detailsText,
             category,
-            requestedArea: area.trim(),
+            requestedArea: area,
             imageUri: attachmentUri,
             imageMimeType: attachmentMimeType,
           },
@@ -133,7 +135,7 @@ export default function ReviewScreen() {
       // Keep the existing same-session shop demo usable after the cloud save.
       addApprovedRequest({
         category,
-        area: area.trim(),
+        area,
         details: detailsText,
         imageUri: attachmentUri,
       });
@@ -232,16 +234,11 @@ export default function ReviewScreen() {
             })}
           </View>
           <Text style={styles.matchingTitle}>المنطقة المطلوبة</Text>
-          <TextInput
-            accessibilityLabel="المنطقة المطلوبة"
-            editable={!confirmed && !isSaving}
-            maxLength={80}
-            onChangeText={setArea}
-            placeholder="مثلاً: بيروت - الحمرا"
-            placeholderTextColor="#9AA8A0"
-            style={styles.areaInput}
-            textAlign="right"
+          <SyriaLocationPicker
+            label="الموقع داخل سوريا"
             value={area}
+            onChange={setArea}
+            disabled={confirmed || isSaving}
           />
           <Text style={styles.matchingHint}>
             اختار الفئة واكتب المنطقة لحتى نعرض الطلبات المطابقة للمحلات.

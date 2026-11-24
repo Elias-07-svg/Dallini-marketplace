@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DALLNI_COLORS, FlowHeader, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import { loadOwnerShop, shopOwnerErrorCode, type OwnerShopProfile } from '@/lib/shop-owner-supabase';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 import {
   archiveOwnerProduct,
   loadOwnerProducts,
@@ -108,7 +109,7 @@ export default function OwnerProductsScreen() {
               ) : (
                 <Text style={styles.stateText}>بتقدر تجهّز مسودات؛ نشر المنتجات بيصير بعد تفعيل ملف المحل.</Text>
               )}
-              <Text style={styles.areas}>مناطق الخدمة: {shop.service_areas.length ? shop.service_areas.join('، ') : shop.location || 'أضف المناطق من ملف المحل'}</Text>
+              <Text style={styles.areas}>مناطق الخدمة: {shop.service_areas.length ? shop.service_areas.filter(isSyriaLocation).map(formatSyriaLocation).join('\u060c ') : formatSyriaLocation(shop.location)}</Text>
             </SurfaceCard>
 
             {errorCode ? <Text style={styles.errorText}>ما قدرنا نحفظ أو نحمّل المنتجات. تأكّد من الاتصال وحاول مرة تانية.</Text> : null}

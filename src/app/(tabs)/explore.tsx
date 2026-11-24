@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DALLNI_COLORS, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
 import { ProductCard } from '@/components/dallni/product-card';
 import { ShopCard } from '@/components/dallni/shop-card';
+import { SyriaLocationPicker } from '@/components/dallni/syria-location-picker';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadPublicShopRatingSummaries, type PublicShopRatingSummaries } from '@/lib/public-shop-ratings';
 import {
@@ -28,10 +29,11 @@ import {
   type CatalogProduct,
   type PublicShop,
 } from '@/lib/product-catalog-supabase';
+import { isSyriaLocation } from '@/utils/syria-locations';
 
 type ExploreView = 'products' | 'shops';
-type Currency = '' | 'USD' | 'LBP';
-type PriceRanges = Record<'USD' | 'LBP', { min: string; max: string }>;
+type Currency = '' | 'USD' | 'SYP';
+type PriceRanges = Record<'USD' | 'SYP', { min: string; max: string }>;
 type AppliedFilters = {
   search: string;
   category: string;
@@ -42,7 +44,7 @@ type AppliedFilters = {
 
 const EMPTY_RANGES: PriceRanges = {
   USD: { min: '', max: '' },
-  LBP: { min: '', max: '' },
+  SYP: { min: '', max: '' },
 };
 
 export default function ExploreScreen() {
@@ -129,7 +131,7 @@ export default function ExploreScreen() {
     setFilters({
       search: searchDraft.trim(),
       category: categoryDraft,
-      area: areaDraft.trim(),
+      area: isSyriaLocation(areaDraft) ? areaDraft : '',
       currency: currencyDraft,
       ranges: rangesDraft,
     });
@@ -137,7 +139,9 @@ export default function ExploreScreen() {
 
   function updateRange(which: 'min' | 'max', value: string) {
     if (!currencyDraft) return;
-    const clean = value.replace(/[^0-9.]/gu, '').replace(/(\..*)\./gu, '$1');
+    const clean = currencyDraft === 'SYP'
+      ? value.replace(/[^0-9]/gu, '')
+      : value.replace(/[^0-9.]/gu, '').replace(/(\..*)\./gu, '$1');
     setRangesDraft((current) => ({
       ...current,
       [currencyDraft]: { ...current[currencyDraft], [which]: clean },
@@ -195,14 +199,10 @@ export default function ExploreScreen() {
               <FilterChip key={category} label={category} selected={categoryDraft === category} onPress={() => setCategoryDraft((current) => current === category ? '' : category)} />
             ))}
           </ScrollView>
-          <TextInput
-            accessibilityLabel="منطقة الخدمة"
-            onChangeText={setAreaDraft}
-            placeholder="المنطقة، مثلاً الحمرا"
-            placeholderTextColor="#9AA8A0"
-            style={styles.searchInput}
-            textAlign="right"
+          <SyriaLocationPicker
+            label="فلترة حسب الموقع في سوريا"
             value={areaDraft}
+            onChange={setAreaDraft}
           />
           {view === 'products' ? (
             <>
@@ -210,7 +210,7 @@ export default function ExploreScreen() {
               <View style={styles.currencyRow}>
                 <FilterChip label="كل العملات" selected={!currencyDraft} onPress={() => setCurrencyDraft('')} />
                 <FilterChip label="USD" selected={currencyDraft === 'USD'} onPress={() => setCurrencyDraft('USD')} />
-                <FilterChip label="LBP" selected={currencyDraft === 'LBP'} onPress={() => setCurrencyDraft('LBP')} />
+                <FilterChip label="SYP" selected={currencyDraft === 'SYP'} onPress={() => setCurrencyDraft('SYP')} />
               </View>
               {currencyDraft ? (
                 <View style={styles.priceRow}>

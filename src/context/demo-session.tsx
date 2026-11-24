@@ -16,6 +16,7 @@ export type DemoOffer = {
   shopLocation: string;
   itemName: string;
   price: string;
+  currencyCode: 'USD' | 'SYP';
   deliveryNote: string;
 };
 
@@ -152,6 +153,7 @@ export function DemoSessionProvider({ children }: { children: ReactNode }) {
       shopLocation: offer.shopLocation,
       itemName: offer.itemName,
       price: offer.price,
+      currencyCode: offer.currencyCode,
       deliveryNote: offer.deliveryNote,
     };
     const normalizedWhatsAppNumber = normalizeInternationalWhatsAppNumber(offer.whatsappNumber);

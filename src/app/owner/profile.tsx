@@ -13,6 +13,8 @@ import {
 } from '@/components/dallni/flow-ui';
 import { useDemoSession } from '@/context/demo-session';
 import { normalizeInternationalWhatsAppNumber } from '@/utils/whatsapp';
+import { SyriaLocationPicker } from '@/components/dallni/syria-location-picker';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 
 export default function ShopProfileScreen() {
   const { approvedRequests, shopProfile, updateShopProfile } = useDemoSession();
@@ -31,7 +33,7 @@ export default function ShopProfileScreen() {
   );
 
   function saveProfile() {
-    if (hasInvalidWhatsAppNumber) return;
+    if (hasInvalidWhatsAppNumber || !isSyriaLocation(location)) return;
 
     const productCategories = Array.from(
       new Set(
@@ -45,7 +47,7 @@ export default function ShopProfileScreen() {
     updateShopProfile({
       shopName: shopName.trim(),
       whatsappNumber: normalizedWhatsAppNumber ?? '',
-      location: location.trim(),
+      location,
       productCategories,
     });
     setSaved(true);
@@ -103,19 +105,19 @@ export default function ShopProfileScreen() {
               ? 'اكتب الرقم مع + ورمز الدولة بصيغة دولية صحيحة.'
               : 'الرقم الدولي مطلوب لإضافة عرض والتواصل عبر واتساب.'}
           </Text>
-          <OfferField
-            label="منطقة الخدمة"
-            placeholder="مثلاً: طرابلس - الميناء"
+          <SyriaLocationPicker
+            label="موقع المحل داخل سوريا"
             value={location}
-            onChangeText={(value) => {
+            onChange={(value) => {
               setLocation(value);
               setSaved(false);
             }}
-            maxLength={80}
           />
-          <Text style={styles.fieldHint}>
-            اكتب المنطقة أو المناطق اللي بتخدمها، مثل ما بيكتبها الزبون.
-          </Text>
+          {!isSyriaLocation(location) ? (
+            <Text style={styles.fieldHint}>اختار موقعاً من قائمة سوريا قبل حفظ الملف.</Text>
+          ) : (
+            <Text style={styles.fieldHint}>الموقع: {formatSyriaLocation(location)}</Text>
+          )}
           <OfferField
             label="فئات المنتجات"
             placeholder="إلكترونيات، أثاث، رياضة"
@@ -141,7 +143,7 @@ export default function ShopProfileScreen() {
           )}
 
           <PrimaryButton
-            disabled={hasInvalidWhatsAppNumber}
+            disabled={hasInvalidWhatsAppNumber || !isSyriaLocation(location)}
             label="حفظ ملف المحل التجريبي"
             onPress={saveProfile}
           />

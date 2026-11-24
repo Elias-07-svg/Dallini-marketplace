@@ -18,6 +18,7 @@ import { OfferField } from '@/components/dallni/offer-field';
 import { DALLNI_COLORS, FlowHeader, PrimaryButton, SurfaceCard } from '@/components/dallni/flow-ui';
 import { useSupabaseAuth } from '@/context/supabase-auth';
 import { REQUEST_CATEGORIES } from '@/data/request-categories';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 import { loadOwnerShop, type OwnerShopProfile } from '@/lib/shop-owner-supabase';
 import {
   createOwnerProductDraft,
@@ -28,7 +29,7 @@ import {
   type ShopProduct,
 } from '@/lib/shop-products-supabase';
 
-type Currency = 'USD' | 'LBP';
+type Currency = 'USD' | 'SYP' | 'LBP';
 
 export default function OwnerProductEditorScreen() {
   const { productId: routeProductId } = useLocalSearchParams<{ productId: string }>();
@@ -98,6 +99,7 @@ export default function OwnerProductEditorScreen() {
     : [...REQUEST_CATEGORIES];
   const normalizedPrice = Number(price.replace(',', '.'));
   const isValidPrice = Number.isFinite(normalizedPrice)
+    && currency !== 'LBP'
     && normalizedPrice > 0
     && normalizedPrice <= 9_999_999_999.99;
   const hasPhoto = Boolean(photoUri || product?.image_path);
@@ -134,8 +136,13 @@ export default function OwnerProductEditorScreen() {
     }
   }
 
+  function selectCurrency(nextCurrency: 'USD' | 'SYP') {
+    if (currency !== nextCurrency) setPrice('');
+    setCurrency(nextCurrency);
+  }
+
   async function saveProduct() {
-    if (!user || !shop || !canSave) return;
+    if (!user || !shop || !canSave || currency === 'LBP') return;
     const fields: ProductFields = {
       name: name.trim(),
       description: description.trim(),
@@ -221,13 +228,14 @@ export default function OwnerProductEditorScreen() {
                 {shop.product_categories.length === 0 ? <Text style={styles.hint}>عم نعرض فئات دَلّني. اختار فئات المحل من ملفه لتحديد خياراته.</Text> : null}
               </View>
 
-              <OfferField label="السعر *" placeholder="مثلاً: 25" value={price} onChangeText={(value) => setPrice(value.replace(/[^0-9.,]/gu, '').replace(/(\..*)\./gu, '$1'))} keyboardType="decimal-pad" maxLength={15} />
+              <OfferField label="السعر *" placeholder="مثلاً: 25" value={price} onChangeText={(value) => setPrice(currency === 'SYP' ? value.replace(/[^0-9]/gu, '') : value.replace(/[^0-9.,]/gu, '').replace(/(\..*)\./gu, '$1'))} keyboardType="decimal-pad" maxLength={15} />
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>العملة *</Text>
                 <View style={styles.currencyRow}>
-                  <Pressable accessibilityRole="radio" accessibilityState={{ checked: currency === 'LBP' }} onPress={() => setCurrency('LBP')} style={[styles.currencyButton, currency === 'LBP' && styles.currencySelected]}><Text style={[styles.currencyText, currency === 'LBP' && styles.currencyTextSelected]}>LBP</Text></Pressable>
-                  <Pressable accessibilityRole="radio" accessibilityState={{ checked: currency === 'USD' }} onPress={() => setCurrency('USD')} style={[styles.currencyButton, currency === 'USD' && styles.currencySelected]}><Text style={[styles.currencyText, currency === 'USD' && styles.currencyTextSelected]}>USD</Text></Pressable>
+                  <Pressable accessibilityRole="radio" accessibilityState={{ checked: currency === 'SYP' }} onPress={() => selectCurrency('SYP')} style={[styles.currencyButton, currency === 'SYP' && styles.currencySelected]}><Text style={[styles.currencyText, currency === 'SYP' && styles.currencyTextSelected]}>SYP</Text></Pressable>
+                  <Pressable accessibilityRole="radio" accessibilityState={{ checked: currency === 'USD' }} onPress={() => selectCurrency('USD')} style={[styles.currencyButton, currency === 'USD' && styles.currencySelected]}><Text style={[styles.currencyText, currency === 'USD' && styles.currencyTextSelected]}>USD</Text></Pressable>
                 </View>
+                {currency === 'LBP' ? <Text style={styles.hint}>هذا المنتج محفوظ بسعر قديم بالليرة اللبنانية. ما رح نحوّل المبلغ تلقائياً؛ اختار USD أو SYP وأدخل السعر الجديد.</Text> : null}
               </View>
 
               <View style={styles.field}>
@@ -241,7 +249,7 @@ export default function OwnerProductEditorScreen() {
 
               <View style={styles.areaNotice}>
                 <Text style={styles.areaTitle}>مناطق ظهور المنتج</Text>
-                <Text style={styles.hint}>{shop.service_areas.length ? shop.service_areas.join('، ') : shop.location || 'أضف مناطق الخدمة من ملف المحل'}</Text>
+                <Text style={styles.hint}>{shop.service_areas.filter(isSyriaLocation).map(formatSyriaLocation).join('، ') || formatSyriaLocation(shop.location)}</Text>
                 <Text style={styles.hint}>المنطقة والفئة بالكتالوج بياخدهم الزبون من ملف المحل والفئة المختارة.</Text>
               </View>
 

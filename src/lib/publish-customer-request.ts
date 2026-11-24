@@ -3,6 +3,7 @@ import {
   supabase,
   type PostgrestAuthDiagnostic,
 } from '@/lib/supabase';
+import { isSyriaLocation } from '@/utils/syria-locations';
 
 const REQUEST_IMAGE_BUCKET = 'request-images';
 const REQUEST_IMAGE_SIZE_LIMIT = 8 * 1024 * 1024;
@@ -193,6 +194,7 @@ export async function publishCustomerRequest(
   let authDiagnostic: PostgrestAuthDiagnostic | null = null;
 
   try {
+    if (!isSyriaLocation(input.requestedArea)) throw new Error('REQUEST_AREA_INVALID');
     if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED');
 
     const client = supabase;

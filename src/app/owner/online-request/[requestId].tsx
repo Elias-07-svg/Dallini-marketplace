@@ -46,15 +46,16 @@ import {
   createWhatsAppTextUrl,
   normalizeInternationalWhatsAppNumber,
 } from '@/utils/whatsapp';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 
-type CurrencyCode = 'USD' | 'LBP';
+type CurrencyCode = 'USD' | 'SYP';
 const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
 
 function normalizePrice(value: string, currencyCode: CurrencyCode) {
   const normalized = value
     .replace(/[٠-٩]/gu, (digit) => String(arabicDigits.indexOf(digit)))
     .replace(/[$\s٬]/gu, '');
-  if (currencyCode === 'LBP') return normalized.replace(/[.٫،,]/gu, '');
+  if (currencyCode === 'SYP') return normalized.replace(/[.٫،,]/gu, '');
 
   return normalized
     .replace(/,(?=\d{3}(?:[,\.]|$))/gu, '')
@@ -199,7 +200,8 @@ export default function ConnectedShopRequestScreen() {
 
   const normalizedPrice = normalizePrice(price, currencyCode);
   const priceAmount = Number(normalizedPrice);
-  const isPriceValid = Number.isFinite(priceAmount) && priceAmount > 0 && priceAmount <= 9999999999.99;
+  const isPriceValid = Number.isFinite(priceAmount) && priceAmount > 0 && priceAmount <= 9999999999.99 &&
+    (currencyCode !== 'SYP' || Number.isInteger(priceAmount));
   const validWhatsAppNumber = shop
     ? normalizeInternationalWhatsAppNumber(shop.whatsapp_number)
     : null;
@@ -347,7 +349,7 @@ export default function ConnectedShopRequestScreen() {
                 <Text style={styles.status}>{requestStatusLabel(request.status)}</Text>
               </View>
               <Text style={styles.requestTitle}>{request.title}</Text>
-              <Text style={styles.detailLine}>المنطقة: {request.requested_area}</Text>
+              <Text style={styles.detailLine}>المنطقة: {formatSyriaLocation(request.requested_area)}</Text>
               <Text style={styles.requestDetails}>
                 {request.details || 'ما في تفاصيل مكتوبة.'}
               </Text>
@@ -439,12 +441,18 @@ export default function ConnectedShopRequestScreen() {
                     <CurrencyOption
                       label="دولار USD"
                       selected={currencyCode === 'USD'}
-                      onPress={() => setCurrencyCode('USD')}
+                      onPress={() => {
+                        if (currencyCode !== 'USD') setPrice('');
+                        setCurrencyCode('USD');
+                      }}
                     />
                     <CurrencyOption
-                      label="ليرة LBP"
-                      selected={currencyCode === 'LBP'}
-                      onPress={() => setCurrencyCode('LBP')}
+                      label="ليرة سورية SYP"
+                      selected={currencyCode === 'SYP'}
+                      onPress={() => {
+                        if (currencyCode !== 'SYP') setPrice('');
+                        setCurrencyCode('SYP');
+                      }}
                     />
                   </View>
                 </View>
@@ -452,13 +460,16 @@ export default function ConnectedShopRequestScreen() {
                   label="السعر"
                   placeholder={currencyCode === 'USD' ? 'مثلاً: ٢٣٠٫٥٠' : 'مثلاً: ٢٠٠٠٠٠٠'}
                   value={price}
-                  onChangeText={(value) => { setPrice(value); setOfferSaved(false); }}
+                  onChangeText={(value) => {
+                    setPrice(currencyCode === 'SYP' ? value.replace(/[^0-9\u0660-\u0669]/gu, '') : value);
+                    setOfferSaved(false);
+                  }}
                   keyboardType="decimal-pad"
                   maxLength={18}
                 />
                 <OfferField
                   label="ملاحظة التوصيل"
-                  placeholder="مثلاً: توصيل لجونية خلال يومين"
+                  placeholder="مثلاً: توصيل لدمشق خلال يومين"
                   value={deliveryNote}
                   onChangeText={(value) => { setDeliveryNote(value); setOfferSaved(false); }}
                   multiline
@@ -518,7 +529,7 @@ export default function ConnectedShopRequestScreen() {
                   السعر: {formatPrice(offer.price_amount)} {offer.currency_code}
                 </Text>
                 <Text style={styles.offerDetail}>التوصيل: {offer.delivery_note}</Text>
-                <Text style={styles.offerDetail}>الموقع: {offer.shop_location_snapshot || 'غير محدد'}</Text>
+                <Text style={styles.offerDetail}>الموقع: {formatSyriaLocation(offer.shop_location_snapshot)}</Text>
               </SurfaceCard>
             ))}
           </>

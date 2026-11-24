@@ -15,7 +15,7 @@ export type ShopProduct = {
   description: string;
   category: string;
   price_amount: number;
-  currency_code: 'USD' | 'LBP';
+  currency_code: 'USD' | 'SYP' | 'LBP';
   image_path: string | null;
   image_url: string | null;
   status: ShopProductStatus;
@@ -28,7 +28,7 @@ export type ProductFields = {
   description: string;
   category: string;
   priceAmount: number;
-  currencyCode: 'USD' | 'LBP';
+  currencyCode: 'USD' | 'SYP';
 };
 
 function requireSupabase() {

@@ -42,6 +42,7 @@ import {
   subscribeToCustomerRequestOffers,
 } from '@/lib/marketplace-realtime';
 import { ORDER_STAGES } from '@/context/demo-session';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 import {
   createWhatsAppClickToChatUrl,
   normalizeInternationalWhatsAppNumber,
@@ -519,7 +520,7 @@ function CustomerRequestCard({
     }
 
     const price = formatPrice(selectedOffer.price_amount);
-    const currencySuffix = selectedOffer.currency_code === 'USD' ? ' $' : ' LBP';
+    const currencySuffix = ` ${selectedOffer.currency_code}`;
     const url = createWhatsAppClickToChatUrl(whatsappNumber, {
       requestTitle: request.title,
       requestDetails: request.details,
@@ -551,7 +552,7 @@ function CustomerRequestCard({
         <Text style={styles.details}>{request.details}</Text>
       )}
       <OfferLine label="الفئة" value={request.category} />
-      <OfferLine label="منطقة الطلب" value={request.requested_area} />
+      <OfferLine label="منطقة الطلب" value={formatSyriaLocation(request.requested_area)} />
       {entry.imageUrl ? (
         <Image
           accessibilityLabel="الصورة المرفقة بطلبك"
@@ -610,7 +611,7 @@ function CustomerRequestCard({
                   </Text>
                   <Text style={styles.shopName}>{offer.shop_name_snapshot}</Text>
                 </View>
-                <OfferLine label="الموقع" value={offer.shop_location_snapshot || 'الموقع غير محدد'} />
+                <OfferLine label="الموقع" value={formatSyriaLocation(offer.shop_location_snapshot)} />
                 <OfferLine label="المنتج" value={offer.item_name} />
                 <View style={styles.offerPriceLine}>
                   <Text style={styles.offerPriceValue}>{`${formatPrice(offer.price_amount)} ${offer.currency_code}`}</Text>
@@ -644,7 +645,7 @@ function CustomerRequestCard({
                 صار طلبك مغلقاً أمام عروض جديدة، وتم إنشاء الطلب عند المحل.
               </Text>
               <OfferLine label="المحل" value={selectedOffer.shop_name_snapshot} />
-              <OfferLine label="الموقع" value={selectedOffer.shop_location_snapshot || 'الموقع غير محدد'} />
+              <OfferLine label="الموقع" value={formatSyriaLocation(selectedOffer.shop_location_snapshot)} />
               <OfferLine label="المنتج" value={selectedOffer.item_name} />
               <OfferLine label="السعر" value={`${formatPrice(selectedOffer.price_amount)} ${selectedOffer.currency_code}`} />
               <OfferLine label="التوصيل" value={selectedOffer.delivery_note} />
@@ -706,7 +707,7 @@ function CustomerRequestCard({
                 keyboardType="phone-pad"
                 maxLength={20}
                 onChangeText={onCustomerWhatsAppChange}
-                placeholder="مثلاً: +961 3 123 456"
+                placeholder="مثلاً: +963 944 123 456"
                 placeholderTextColor="#9AA8A0"
                 style={styles.customerContactInput}
                 textAlign="right"
@@ -733,7 +734,7 @@ function CustomerRequestCard({
               {customerContactErrorCode ? (
                 <Text style={styles.errorText}>
                   {customerContactErrorCode === 'INVALID_WHATSAPP_NUMBER'
-                    ? 'اكتب رقم واتساب بصيغة دولية، مثل +961 3 123 456.'
+                    ? 'اكتب رقم واتساب بصيغة دولية، مثل +963 944 123 456.'
                     : 'ما قدرنا نحفظ رقم واتساب. تحقق من اتصال الإنترنت وحاول مرة تانية.'}
                 </Text>
               ) : null}

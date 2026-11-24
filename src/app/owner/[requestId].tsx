@@ -5,6 +5,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -34,6 +35,7 @@ import {
   createWhatsAppTextUrl,
   normalizeInternationalWhatsAppNumber,
 } from '@/utils/whatsapp';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 
 const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
 
@@ -70,6 +72,7 @@ export default function ShopRequestDetailScreen() {
   const nextOrderStage = ORDER_STAGES[currentStageIndex + 1];
   const [itemName, setItemName] = useState('');
   const [price, setPrice] = useState('');
+  const [currencyCode, setCurrencyCode] = useState<'USD' | 'SYP'>('USD');
   const [deliveryNote, setDeliveryNote] = useState('');
   const [sampleOffers, setSampleOffers] = useState<DemoOffer[]>([]);
   const [draftOpen, setDraftOpen] = useState(
@@ -93,7 +96,8 @@ export default function ShopRequestDetailScreen() {
     itemName.trim().length > 0 &&
     deliveryNote.trim().length > 0 &&
     Number.isFinite(numericPrice) &&
-    numericPrice > 0;
+    numericPrice > 0 &&
+    (currencyCode !== 'SYP' || Number.isInteger(numericPrice));
 
   function saveDraftOffer() {
     if (!canConfirm || !normalizedWhatsAppNumber) return;
@@ -103,6 +107,7 @@ export default function ShopRequestDetailScreen() {
       shopLocation: shopProfile.location.trim(),
       itemName: itemName.trim(),
       price: normalizedPrice,
+      currencyCode,
       deliveryNote: deliveryNote.trim(),
     };
 
@@ -118,11 +123,12 @@ export default function ShopRequestDetailScreen() {
       setLatestOfferId(createdOfferId);
     } else {
       const localOffer: DemoOffer = {
-        id: `sample-offer-${Date.now()}-${sampleOffers.length}`,
+        id: `sample-offer-${sampleOffers.length + 1}`,
         shopName: offerDraft.shopName,
         shopLocation: offerDraft.shopLocation,
         itemName: offerDraft.itemName,
         price: offerDraft.price,
+        currencyCode: offerDraft.currencyCode,
         deliveryNote: offerDraft.deliveryNote,
       };
       setSampleOffers((current) => [...current, localOffer]);
@@ -131,6 +137,7 @@ export default function ShopRequestDetailScreen() {
 
     setItemName('');
     setPrice('');
+    setCurrencyCode('USD');
     setDeliveryNote('');
     setDraftOpen(false);
   }
@@ -140,7 +147,7 @@ export default function ShopRequestDetailScreen() {
 
     const message = [
       `مرحبا، أنا صاحب محل ${selectedOffer.shopName}. عم بتواصل معك بخصوص طلبك «${customerRequest.title}».`,
-      `العرض المختار: ${selectedOffer.itemName} بسعر ${selectedOffer.price} دولار.`,
+      `العرض المختار: ${selectedOffer.itemName} بسعر ${selectedOffer.price} ${selectedOffer.currencyCode}.`,
     ].join('\n');
     const url = createWhatsAppTextUrl(customerWhatsAppNumber, message);
     if (!url) {
@@ -223,7 +230,7 @@ export default function ShopRequestDetailScreen() {
                 {customerRequest && (
                   <View style={styles.customerRequestFacts}>
                     <SummaryLine label="فئة الطلب" value={customerRequest.category} />
-                    <SummaryLine label="منطقة الطلب" value={customerRequest.area} />
+                    <SummaryLine label="منطقة الطلب" value={formatSyriaLocation(customerRequest.area)} />
                     {customerRequest.status === 'cancelled' && (
                       <Text style={styles.cancelledRequestNote}>
                         ألغى الزبون الطلب. ما عاد ظاهر بصندوق المحلات وما فيك تضيف عليه عرضاً.
@@ -236,7 +243,7 @@ export default function ShopRequestDetailScreen() {
                   <View style={styles.requestFacts}>
                     <View style={styles.fact}>
                       <Text style={styles.factLabel}>المنطقة</Text>
-                      <Text style={styles.factValue}>{sampleRequest.location}</Text>
+                      <Text style={styles.factValue}>{formatSyriaLocation(sampleRequest.location)}</Text>
                     </View>
                     <View style={styles.factDivider} />
                     <View style={styles.fact}>
@@ -261,7 +268,7 @@ export default function ShopRequestDetailScreen() {
                     {shopProfile.shopName || 'اسم المحل غير محدد'}
                   </Text>
                   <Text style={styles.profileSummaryText}>
-                    {shopProfile.location || 'الموقع غير محدد'}
+                    {formatSyriaLocation(shopProfile.location)}
                   </Text>
                   {shopProfile.productCategories.length > 0 && (
                     <Text style={styles.profileSummaryText}>
@@ -307,9 +314,9 @@ export default function ShopRequestDetailScreen() {
                           <Text style={styles.selectedOfferTag}>اختاره الزبون</Text>
                         )}
                         <SummaryLine label="المحل" value={offer.shopName} />
-                        <SummaryLine label="الموقع" value={offer.shopLocation || 'غير محدد'} />
+                        <SummaryLine label="الموقع" value={formatSyriaLocation(offer.shopLocation)} />
                         <SummaryLine label="المنتج" value={offer.itemName} />
-                        <SummaryLine label="السعر" value={offer.price + ' $'} />
+                        <SummaryLine label="السعر" value={offer.price + ' ' + offer.currencyCode} />
                         <SummaryLine label="التوصيل" value={offer.deliveryNote} />
                       </View>
                       );
@@ -324,10 +331,10 @@ export default function ShopRequestDetailScreen() {
                       <SummaryLine label="المحل" value={selectedOffer.shopName} />
                       <SummaryLine
                         label="الموقع"
-                        value={selectedOffer.shopLocation || 'غير محدد'}
+                        value={formatSyriaLocation(selectedOffer.shopLocation)}
                       />
                       <SummaryLine label="المنتج" value={selectedOffer.itemName} />
-                      <SummaryLine label="السعر" value={selectedOffer.price + ' $'} />
+                      <SummaryLine label="السعر" value={selectedOffer.price + ' ' + selectedOffer.currencyCode} />
                       <SummaryLine label="التوصيل" value={selectedOffer.deliveryNote} />
                     </View>
                     <OrderProgress stage={currentOrderStage} />
@@ -377,17 +384,42 @@ export default function ShopRequestDetailScreen() {
                       onChangeText={setItemName}
                       maxLength={80}
                     />
+                    <View style={styles.currencyRow}>
+                      <Pressable
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: currencyCode === 'SYP' }}
+                        onPress={() => {
+                          if (currencyCode !== 'SYP') setPrice('');
+                          setCurrencyCode('SYP');
+                        }}
+                        style={[styles.currencyButton, currencyCode === 'SYP' && styles.currencyButtonSelected]}>
+                        <Text style={[styles.currencyText, currencyCode === 'SYP' && styles.currencyTextSelected]}>SYP</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: currencyCode === 'USD' }}
+                        onPress={() => {
+                          if (currencyCode !== 'USD') setPrice('');
+                          setCurrencyCode('USD');
+                        }}
+                        style={[styles.currencyButton, currencyCode === 'USD' && styles.currencyButtonSelected]}>
+                        <Text style={[styles.currencyText, currencyCode === 'USD' && styles.currencyTextSelected]}>USD</Text>
+                      </Pressable>
+                    </View>
                     <OfferField
-                      label="السعر بالدولار"
+                      label={'السعر ' + currencyCode}
                       placeholder="مثلاً: ٢٣٠"
                       value={price}
                       onChangeText={setPrice}
                       keyboardType="decimal-pad"
                       maxLength={10}
                     />
+                    {currencyCode === 'SYP' && price.trim() && !Number.isInteger(numericPrice) ? (
+                      <Text style={styles.profileSummaryWarning}>أدخل السعر بالليرة السورية من دون كسور.</Text>
+                    ) : null}
                     <OfferField
                       label="ملاحظة التوصيل"
-                      placeholder="مثلاً: توصيل لجونية خلال يومين"
+                      placeholder="مثلاً: توصيل لدمشق خلال يومين"
                       value={deliveryNote}
                       onChangeText={setDeliveryNote}
                       multiline
@@ -613,6 +645,11 @@ const styles = StyleSheet.create({
     gap: 13,
     paddingTop: 5,
   },
+  currencyRow: { flexDirection: 'row-reverse', gap: 8 },
+  currencyButton: { borderColor: DALLNI_COLORS.border, borderRadius: 11, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  currencyButtonSelected: { backgroundColor: DALLNI_COLORS.greenLight, borderColor: DALLNI_COLORS.green },
+  currencyText: { color: DALLNI_COLORS.muted, fontSize: 11, fontWeight: '800' },
+  currencyTextSelected: { color: DALLNI_COLORS.greenDark },
   formHeading: {
     color: DALLNI_COLORS.ink,
     fontSize: 13,

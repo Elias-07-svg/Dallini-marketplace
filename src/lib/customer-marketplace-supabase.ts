@@ -23,7 +23,7 @@ export type CustomerCloudOffer = {
   shop_id: string;
   item_name: string;
   price_amount: number;
-  currency_code: 'USD' | 'LBP';
+  currency_code: 'USD' | 'SYP' | 'LBP';
   delivery_note: string;
   shop_name_snapshot: string;
   shop_location_snapshot: string;

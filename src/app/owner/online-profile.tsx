@@ -7,7 +7,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,11 +29,8 @@ import {
   type OwnerShopProfileInput,
 } from '@/lib/shop-owner-supabase';
 import { normalizeInternationalWhatsAppNumber } from '@/utils/whatsapp';
-
-function splitList(value: string, maxItems: number) {
-  return Array.from(new Set(value.split(/[،,\n]/u).map((item) => item.trim()).filter(Boolean)))
-    .slice(0, maxItems);
-}
+import { SyriaLocationPicker } from '@/components/dallni/syria-location-picker';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 
 function normalizeCategories(categories: string[]) {
   return Array.from(new Set(categories.map((category) => category.trim()).filter(Boolean)));
@@ -102,16 +98,16 @@ export default function ConnectedShopProfileScreen() {
 
   const normalizedWhatsAppNumber = normalizeInternationalWhatsAppNumber(whatsappNumber);
   const hasInvalidWhatsAppNumber = whatsappNumber.trim().length > 0 && !normalizedWhatsAppNumber;
-  const canSave = Boolean(user) && shopName.trim().length > 0 && !hasInvalidWhatsAppNumber && !isSaving;
+  const canSave = Boolean(user) && shopName.trim().length > 0 && isSyriaLocation(location) &&
+    serviceAreas.every(isSyriaLocation) && !hasInvalidWhatsAppNumber && !isSaving;
   const customCategories = normalizeCategories(selectedCategories).filter(
     (category) => !REQUEST_CATEGORIES.some((catalogCategory) => catalogCategory === category),
   );
 
   function addServiceAreas() {
-    const additions = splitList(serviceAreaDraft, 20);
-    if (additions.length === 0 || isSaving) return;
+    if (!isSyriaLocation(serviceAreaDraft) || isSaving || serviceAreas.length >= 20) return;
 
-    setServiceAreas((current) => mergeServiceAreas(current, additions));
+    setServiceAreas((current) => mergeServiceAreas(current, [serviceAreaDraft]));
     setServiceAreaDraft('');
   }
 
@@ -123,14 +119,17 @@ export default function ConnectedShopProfileScreen() {
   async function saveProfile() {
     if (!user || !canSave) return;
 
-    const areasToSave = mergeServiceAreas(serviceAreas, splitList(serviceAreaDraft, 20));
+    const areasToSave = mergeServiceAreas(
+      serviceAreas.filter(isSyriaLocation),
+      isSyriaLocation(serviceAreaDraft) ? [serviceAreaDraft] : [],
+    );
     setServiceAreas(areasToSave);
     setServiceAreaDraft('');
 
     const input: OwnerShopProfileInput = {
       shop_name: shopName.trim().slice(0, 70),
       whatsapp_number: normalizedWhatsAppNumber ?? '',
-      location: location.trim().slice(0, 100),
+      location,
       service_areas: areasToSave,
       product_categories: normalizeCategories(selectedCategories),
     };
@@ -213,7 +212,7 @@ export default function ConnectedShopProfileScreen() {
               />
               <OfferField
                 label="واتساب (مطلوب لإرسال العروض)"
-                placeholder="مثلاً: +961..."
+                placeholder="مثلاً: +963..."
                 value={whatsappNumber}
                 onChangeText={setWhatsappNumber}
                 keyboardType="phone-pad"
@@ -221,66 +220,50 @@ export default function ConnectedShopProfileScreen() {
               />
               <Text style={[styles.hint, hasInvalidWhatsAppNumber && styles.errorHint]}>
                 {hasInvalidWhatsAppNumber
-                  ? 'راجع الرقم ورمز الدولة. مثال: +961 3 123 456.'
+                  ? 'راجع الرقم ورمز الدولة. مثال: +963 944 123 456.'
                   : 'أضف الرقم مع رمز الدولة. ما بيظهر للزبون قبل ما يختار عرضك.'}
               </Text>
-              <OfferField
-                label="موقع المحل"
-                placeholder="مثلاً: بيروت، الحمرا"
+              <SyriaLocationPicker
+                label="موقع المحل داخل سوريا"
                 value={location}
-                onChangeText={setLocation}
-                maxLength={100}
+                disabled={isSaving}
+                onChange={setLocation}
               />
+              {!isSyriaLocation(location) ? (
+                <Text style={styles.hint}>اختار موقعاً من قائمة سوريا قبل حفظ الملف.</Text>
+              ) : null}
               <View style={styles.serviceAreaField}>
-                <Text style={styles.fieldLabel}>مناطق الخدمة</Text>
-                <View style={styles.serviceAreaInputRow}>
-                  <TextInput
-                    accessibilityLabel="منطقة خدمة جديدة"
-                    accessibilityHint="اكتب المنطقة واضغط إضافة لتظهر ضمن المناطق المحفوظة."
-                    autoCapitalize="sentences"
-                    autoCorrect={false}
-                    editable={!isSaving}
-                    maxLength={300}
-                    onChangeText={setServiceAreaDraft}
-                    onSubmitEditing={addServiceAreas}
-                    placeholder="مثلاً: بيروت، الحمرا"
-                    placeholderTextColor="#9AA8A0"
-                    returnKeyType="done"
-                    style={styles.serviceAreaInput}
-                    textAlign="right"
-                    value={serviceAreaDraft}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="إضافة منطقة خدمة"
-                    accessibilityState={{ disabled: !serviceAreaDraft.trim() || isSaving }}
-                    disabled={!serviceAreaDraft.trim() || isSaving}
-                    onPress={addServiceAreas}
-                    style={({ pressed }) => [
-                      styles.addServiceAreaButton,
-                      (!serviceAreaDraft.trim() || isSaving) && styles.serviceAreaButtonDisabled,
-                      pressed && styles.serviceAreaButtonPressed,
-                    ]}>
-                    <Text style={styles.addServiceAreaText}>إضافة</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.hint}>اكتب المنطقة واضغط إضافة. اضغط على المنطقة لإزالتها.</Text>
+                <Text style={styles.fieldLabel}>مناطق الخدمة السورية</Text>
+                <SyriaLocationPicker
+                  label="اختر منطقة خدمة"
+                  value={serviceAreaDraft}
+                  disabled={isSaving}
+                  onChange={setServiceAreaDraft}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !isSyriaLocation(serviceAreaDraft) || isSaving || serviceAreas.length >= 20 }}
+                  disabled={!isSyriaLocation(serviceAreaDraft) || isSaving || serviceAreas.length >= 20}
+                  onPress={addServiceAreas}
+                  style={({ pressed }) => [styles.addServiceAreaButton, (!isSyriaLocation(serviceAreaDraft) || isSaving) && styles.serviceAreaButtonDisabled, pressed && styles.serviceAreaButtonPressed]}>
+                  <Text style={styles.addServiceAreaText}>إضافة منطقة خدمة</Text>
+                </Pressable>
+                <Text style={styles.hint}>اختار المحافظة أو المدينة أو البلدة اللي بيخدمها المحل. اضغط على منطقة محفوظة لإزالتها.</Text>
+                {serviceAreas.some((area) => !isSyriaLocation(area)) ? (
+                  <Text style={styles.errorHint}>في مناطق قديمة محفوظة بصيغة غير معروفة. أزلها أو اختر مناطق سورية قبل الحفظ.</Text>
+                ) : null}
                 {serviceAreas.length > 0 ? (
                   <View style={styles.serviceAreaChips}>
                     {serviceAreas.map((area, index) => (
                       <Pressable
-                        key={`${index}:${area}`}
+                        key={index + ':' + area}
                         accessibilityRole="button"
-                        accessibilityLabel={`إزالة منطقة الخدمة ${area}`}
-                        accessibilityHint="إزالة هذه المنطقة من قائمة الخدمة."
+                        accessibilityLabel={isSyriaLocation(area) ? 'إزالة منطقة الخدمة ' + formatSyriaLocation(area) : 'إزالة منطقة خدمة محفوظة قديمة'}
                         accessibilityState={{ disabled: isSaving }}
                         disabled={isSaving}
                         onPress={() => removeServiceArea(index)}
-                        style={({ pressed }) => [
-                          styles.serviceAreaChip,
-                          pressed && !isSaving && styles.serviceAreaChipPressed,
-                        ]}>
-                        <Text style={styles.serviceAreaChipText}>{area}</Text>
+                        style={({ pressed }) => [styles.serviceAreaChip, pressed && !isSaving && styles.serviceAreaChipPressed]}>
+                        <Text style={styles.serviceAreaChipText}>{formatSyriaLocation(area)}</Text>
                         <Text style={styles.serviceAreaChipRemove}>×</Text>
                       </Pressable>
                     ))}

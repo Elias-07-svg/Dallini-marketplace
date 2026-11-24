@@ -31,6 +31,7 @@ import {
   createWhatsAppClickToChatUrl,
   normalizeInternationalWhatsAppNumber,
 } from '@/utils/whatsapp';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 
 export default function CustomerRequestsScreen() {
   const { user, isLoading } = useSupabaseAuth();
@@ -75,7 +76,7 @@ function DemoCustomerRequestsScreen() {
   function saveCustomerContact(requestId: string, value: string) {
     const normalizedNumber = normalizeInternationalWhatsAppNumber(value);
     if (!normalizedNumber) {
-      Alert.alert('رقم واتساب غير صالح', 'اكتب الرقم بصيغة دولية، مثل +961 3 123 456.');
+      Alert.alert('رقم واتساب غير صالح', 'اكتب الرقم بصيغة دولية، مثل +963 944 123 456.');
       return;
     }
 
@@ -194,7 +195,7 @@ function DemoCustomerRequestsScreen() {
                 )}
 
                 <OfferLine label="الفئة" value={request.category} />
-                <OfferLine label="منطقة الطلب" value={request.area} />
+                <OfferLine label="منطقة الطلب" value={formatSyriaLocation(request.area)} />
 
                 {request.imageUri && (
                   <Image
@@ -231,7 +232,7 @@ function DemoCustomerRequestsScreen() {
                         <Pressable
                           key={offer.id}
                           accessibilityRole="radio"
-                          accessibilityLabel={`اختيار عرض من ${offer.shopName} بسعر ${offer.price} دولار`}
+                          accessibilityLabel={`اختيار عرض من ${offer.shopName} بسعر ${offer.price} ${offer.currencyCode}`}
                           accessibilityState={{ checked: isPending, disabled: isSelectionLocked }}
                           disabled={isSelectionLocked}
                           onPress={() =>
@@ -253,11 +254,11 @@ function DemoCustomerRequestsScreen() {
                           </View>
                           <OfferLine
                             label="الموقع"
-                            value={offer.shopLocation || 'الموقع غير محدد'}
+                            value={formatSyriaLocation(offer.shopLocation)}
                           />
                           <OfferLine label="المنتج" value={offer.itemName} />
                           <View style={styles.offerPriceLine}>
-                            <Text style={styles.offerPriceValue}>{offer.price} $</Text>
+                            <Text style={styles.offerPriceValue}>{offer.price} {offer.currencyCode}</Text>
                             <Text style={styles.offerPriceLabel}>السعر</Text>
                           </View>
                           <OfferLine label="التوصيل" value={offer.deliveryNote} />
@@ -278,9 +279,9 @@ function DemoCustomerRequestsScreen() {
                         <Text style={styles.confirmationText}>
                           اخترت عرض {selectedOffer.shopName}. هيدا اختيار تجريبي ومحفوظ بهالجلسة بس.
                         </Text>
-                        <OfferLine label="الموقع" value={selectedOffer.shopLocation || 'الموقع غير محدد'} />
+                        <OfferLine label="الموقع" value={formatSyriaLocation(selectedOffer.shopLocation)} />
                         <OfferLine label="المنتج" value={selectedOffer.itemName} />
-                        <OfferLine label="السعر" value={selectedOffer.price + ' $'} />
+                        <OfferLine label="السعر" value={selectedOffer.price + ' ' + selectedOffer.currencyCode} />
                         <OfferLine label="التوصيل" value={selectedOffer.deliveryNote} />
                       </ConfirmationPanel>
                     )}
@@ -315,6 +316,7 @@ function DemoCustomerRequestsScreen() {
                                 shopName: selectedOffer.shopName,
                                 itemName: selectedOffer.itemName,
                                 price: selectedOffer.price,
+                                currencySuffix: ` ${selectedOffer.currencyCode}`,
                                 deliveryNote: selectedOffer.deliveryNote,
                               },
                             );
@@ -360,7 +362,7 @@ function DemoCustomerRequestsScreen() {
                             ...current,
                             [request.id]: value,
                           }))}
-                          placeholder="مثلاً: +961 3 123 456"
+                          placeholder="مثلاً: +963 944 123 456"
                           placeholderTextColor="#9AA8A0"
                           style={styles.customerContactInput}
                           textAlign="right"

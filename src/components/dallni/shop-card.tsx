@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 import { DALLNI_COLORS, SurfaceCard } from '@/components/dallni/flow-ui';
 import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import type { PublicShop } from '@/lib/product-catalog-supabase';
@@ -17,7 +18,9 @@ export function ShopCard({
   ratingSummary?: PublicShopRatingSummary | null;
   ratingError?: boolean;
 }) {
-  const areas = [...new Set([shop.location, ...shop.service_areas].map((item) => item.trim()).filter(Boolean))];
+  const areas = [...new Set([shop.location, ...shop.service_areas]
+    .filter(isSyriaLocation)
+    .map(formatSyriaLocation))];
 
   return (
     <SurfaceCard style={styles.card}>

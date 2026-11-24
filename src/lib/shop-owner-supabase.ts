@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { OrderStage } from '@/context/demo-session';
+import { isSyriaLocation } from '@/utils/syria-locations';
 
 const REQUEST_IMAGE_BUCKET = 'request-images';
 const SIGNED_IMAGE_URL_SECONDS = 300;
@@ -54,7 +55,7 @@ export type ShopOffer = {
   shop_id: string;
   item_name: string;
   price_amount: number;
-  currency_code: 'USD' | 'LBP';
+  currency_code: 'USD' | 'SYP' | 'LBP';
   delivery_note: string;
   shop_name_snapshot: string;
   shop_location_snapshot: string;
@@ -77,7 +78,7 @@ export type ShopOwnerOrderSummary = ShopOwnerOrder & {
   requested_area: string;
   item_name: string;
   price_amount: number;
-  currency_code: 'USD' | 'LBP';
+  currency_code: 'USD' | 'SYP' | 'LBP';
   delivery_note: string;
 };
 
@@ -112,6 +113,12 @@ export function shopOwnerErrorCode(error: unknown) {
   return errorCode(error) ?? 'UNKNOWN';
 }
 
+function assertSyriaShopLocations(profile: OwnerShopProfileInput) {
+  if (!isSyriaLocation(profile.location) || profile.service_areas.some((area) => !isSyriaLocation(area))) {
+    throw new Error('SHOP_LOCATION_INVALID');
+  }
+}
+
 async function createAuthorizedImageUrl(imagePath: string | null) {
   if (!imagePath) return null;
 
@@ -139,6 +146,7 @@ export async function createOwnerShop(
   ownerUserId: string,
   profile: OwnerShopProfileInput,
 ) {
+  assertSyriaShopLocations(profile);
   const { data, error } = await requireSupabase()
     .from('shops')
     .insert({
@@ -161,6 +169,7 @@ export async function updateOwnerShop(
   shopId: string,
   profile: OwnerShopProfileInput,
 ) {
+  assertSyriaShopLocations(profile);
   const { data, error } = await requireSupabase()
     .from('shops')
     .update({
@@ -184,12 +193,14 @@ export async function loadOwnerInboxRequests(): Promise<ShopInboxRequest[]> {
     .from('requests')
     .select(REQUEST_COLUMNS)
     .eq('status', 'open')
+    .like('requested_area', 'sy-%')
     .order('created_at', { ascending: false })
     .limit(30);
 
   if (error) throw error;
 
-  const rows = (data ?? []) as Omit<ShopInboxRequest, 'image_url'>[];
+  const rows = ((data ?? []) as Omit<ShopInboxRequest, 'image_url'>[])
+    .filter((request) => isSyriaLocation(request.requested_area));
   return Promise.all(
     rows.map(async (request) => ({
       ...request,
@@ -203,10 +214,12 @@ export async function loadOwnerRequest(requestId: string) {
     .from('requests')
     .select(REQUEST_COLUMNS)
     .eq('id', requestId)
+    .like('requested_area', 'sy-%')
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
+  if (!isSyriaLocation(data.requested_area)) return null;
 
   const request = data as Omit<ShopInboxRequest, 'image_url'>;
   return {
@@ -297,7 +310,7 @@ export async function loadOwnerOrders(shopId: string): Promise<ShopOwnerOrderSum
       requested_area: request?.requested_area ?? '',
       item_name: offer?.item_name ?? '',
       price_amount: offer?.price_amount ?? 0,
-      currency_code: offer?.currency_code === 'LBP' ? 'LBP' : 'USD',
+      currency_code: offer?.currency_code ?? 'USD',
       delivery_note: offer?.delivery_note ?? '',
     };
   });
@@ -333,7 +346,7 @@ export async function createOwnerOffer(input: {
   shopId: string;
   itemName: string;
   priceAmount: number;
-  currencyCode: 'USD' | 'LBP';
+  currencyCode: 'USD' | 'SYP';
   deliveryNote: string;
 }) {
   const { data, error } = await requireSupabase()

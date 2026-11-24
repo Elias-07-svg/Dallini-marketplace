@@ -1,6 +1,7 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FavoriteButton } from '@/components/dallni/favorite-button';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 import { DALLNI_COLORS, SurfaceCard } from '@/components/dallni/flow-ui';
 import type { CatalogProduct } from '@/lib/product-catalog-supabase';
 
@@ -17,8 +18,9 @@ export function ProductCard({
   onPress?: () => void;
   onShopPress?: () => void;
 }) {
-  const area = [...new Set([product.shop_location, ...product.service_areas].map((item) => item.trim()).filter(Boolean))]
-    .join('، ');
+  const area = [...new Set([product.shop_location, ...product.service_areas]
+    .filter(isSyriaLocation)
+    .map(formatSyriaLocation))].join('، ');
   const featuredLabel = product.featured_tier === 'vvip'
     ? 'مميّز VVIP'
     : product.featured_tier === 'vip'

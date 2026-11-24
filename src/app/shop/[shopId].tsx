@@ -10,6 +10,7 @@ import { ShopRatingSummary } from '@/components/dallni/shop-rating-summary';
 import { useCustomerFavorites } from '@/context/customer-favorites';
 import { loadCatalogProducts, loadPublicShop, type CatalogProduct, type PublicShop } from '@/lib/product-catalog-supabase';
 import { loadPublicShopRatingSummaries, type PublicShopRatingSummary } from '@/lib/public-shop-ratings';
+import { formatSyriaLocation, isSyriaLocation } from '@/utils/syria-locations';
 
 export default function PublicShopProfileScreen() {
   const { refreshFavorites } = useCustomerFavorites();
@@ -67,7 +68,9 @@ export default function PublicShopProfileScreen() {
     return () => { isCurrent = false; };
   }, [refreshFavorites, shopId]));
 
-  const areas = shop ? [...new Set([shop.location, ...shop.service_areas].map((area) => area.trim()).filter(Boolean))] : [];
+  const areas = shop ? [...new Set([shop.location, ...shop.service_areas]
+    .filter(isSyriaLocation)
+    .map(formatSyriaLocation))] : [];
 
   return (
     <SafeAreaView style={styles.safeArea}>

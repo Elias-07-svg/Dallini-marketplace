@@ -39,6 +39,7 @@ import {
   type ShopOwnerOrderSummary,
   type ShopOwnerRating,
 } from '@/lib/shop-owner-supabase';
+import { formatSyriaLocation } from '@/utils/syria-locations';
 
 function shopRealtimeAlertMessage(event: MarketplaceRealtimeAlert) {
   if (event.kind === 'new-request') return 'وصل طلب جديد إلى صندوق المحل.';
@@ -257,9 +258,9 @@ export default function ConnectedShopInboxScreen() {
                 <Text style={styles.statusBadge}>{shopStatusLabel(shop.status)}</Text>
                 <Text style={styles.shopName}>{shop.shop_name}</Text>
               </View>
-              <Text style={styles.shopDetail}>الموقع: {shop.location || 'غير محدد'}</Text>
+              <Text style={styles.shopDetail}>الموقع: {formatSyriaLocation(shop.location)}</Text>
               <Text style={styles.shopDetail}>
-                مناطق الخدمة: {shop.service_areas.length ? shop.service_areas.join('، ') : 'غير محددة'}
+                مناطق الخدمة: {shop.service_areas.length ? shop.service_areas.map(formatSyriaLocation).join('\u060c ') : 'غير محددة'}
               </Text>
               <Text style={styles.shopDetail}>
                 الفئات: {shop.product_categories.length ? shop.product_categories.join('، ') : 'غير محددة'}
@@ -350,7 +351,7 @@ export default function ConnectedShopInboxScreen() {
                       <Text style={styles.orderRequestTitle}>{order.request_title}</Text>
                     </View>
                     {order.requested_area ? (
-                      <Text style={styles.orderArea}>منطقة الطلب: {order.requested_area}</Text>
+                      <Text style={styles.orderArea}>منطقة الطلب: {formatSyriaLocation(order.requested_area)}</Text>
                     ) : null}
                     <View style={styles.orderPriceRow}>
                       <Text style={styles.orderPriceLabel}>السعر</Text>
@@ -405,7 +406,7 @@ export default function ConnectedShopInboxScreen() {
                       <Text numberOfLines={2} style={styles.requestDetails}>
                         {request.details || 'ما في تفاصيل مكتوبة.'}
                       </Text>
-                      <Text style={styles.requestArea}>{request.requested_area}</Text>
+                      <Text style={styles.requestArea}>{formatSyriaLocation(request.requested_area)}</Text>
                       {request.status === 'open' && (
                         <Text style={styles.openLink}>افتح الطلب وحضّر عرض ←</Text>
                       )}
